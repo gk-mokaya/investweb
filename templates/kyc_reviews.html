@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}KYC Reviews | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
+
+{% block content %}
+<div class="section-card">
+  <div class="section-header">
+    <div>
+      <div class="section-title">KYC Reviews</div>
+      <div class="card-muted">Approve or reject verification submissions.</div>
+    </div>
+  </div>
+
+  <form method="get">
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Status</label>
+        <select name="status">
+          {% for value, label in status_choices %}
+            <option value="{{ value }}" {% if request.GET.status == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Search</label>
+        <input type="text" name="q" value="{{ request.GET.q }}" placeholder="User or ID" />
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content: flex-start;">
+      <button class="btn primary" type="submit">Apply Filters</button>
+      <a class="btn ghost" href="{% url 'admin_kyc_reviews' %}">Clear</a>
+    </div>
+  </form>
+</div>
+
+<div class="section-card">
+  <div class="section-header">
+    <div>
+      <div class="section-title">KYC Queue</div>
+      <div class="card-muted">Review submitted profiles.</div>
+    </div>
+  </div>
+  <div class="table-wrapper">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Full Name</th>
+          <th>Status</th>
+          <th>Submitted</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for profile in kyc_profiles %}
+          <tr>
+            <td data-label="User">{{ profile.user.username }}</td>
+            <td data-label="Full Name">{{ profile.full_name|default:'-' }}</td>
+            <td data-label="Status">{{ profile.get_status_display }}</td>
+            <td data-label="Submitted">{{ profile.submitted_at|date:"M d, Y"|default:'-' }}</td>
+            <td data-label="Actions">
+              <div class="table-actions">
+                <button class="icon-pill" data-modal-open="#kycView{{ profile.id }}" type="button">
+                  <svg class="icon sm"><use href="#icon-eye"></use></svg>
+                </button>
+                <form method="post" action="{% url 'admin_kyc_approve' profile.id %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="review_note" value="Approved" />
+                  <button class="btn small success" type="submit">Approve</button>
+                </form>
+                <form method="post" action="{% url 'admin_kyc_reject' profile.id %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="review_note" value="Rejected" />
+                  <button class="btn small danger" type="submit">Reject</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="5">
+              <div class="empty-state">No KYC submissions found.</div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "partials/pagination.html" %}
+</div>
+
+{% for profile in kyc_profiles %}
+  <div class="modal" id="kycView{{ profile.id }}">
+    <div class="modal-backdrop" data-modal-close></div>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title">KYC Detail</div>
+        <button class="modal-close" type="button" data-modal-close><svg class="icon sm"><use href="#icon-x"></use></svg></button>
+      </div>
+    <div class="modal-body">
+      <div class="modal-subtitle">Profile Info</div>
+      <div class="modal-section-grid">
+        <div class="info-chip">
+          <div class="info-chip-label">User</div>
+          <div class="info-chip-value">{{ profile.user.username }}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Full Name</div>
+          <div class="info-chip-value">{{ profile.full_name }}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">DOB</div>
+          <div class="info-chip-value">{{ profile.date_of_birth|date:"M d, Y"|default:'-' }}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Country</div>
+          <div class="info-chip-value">{{ profile.country|default:'-' }}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">ID Type</div>
+          <div class="info-chip-value">{{ profile.get_id_type_display }}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">ID Number</div>
+          <div class="info-chip-value">{{ profile.id_number|default:'-' }}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Phone</div>
+          <div class="info-chip-value">{{ profile.phone_number|default:'-' }}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Source of Funds</div>
+          <div class="info-chip-value">{{ profile.source_of_funds|default:'-' }}</div>
+        </div>
+      </div>
+      <div class="modal-subtitle">Documents</div>
+      <div class="modal-section-grid">
+        {% if profile.id_document_front %}
+          <a class="btn ghost" href="{{ profile.id_document_front.url }}" target="_blank">View ID Front</a>
+        {% endif %}
+        {% if profile.id_document_back %}
+          <a class="btn ghost" href="{{ profile.id_document_back.url }}" target="_blank">View ID Back</a>
+        {% endif %}
+        {% if profile.selfie_photo %}
+          <a class="btn ghost" href="{{ profile.selfie_photo.url }}" target="_blank">View Selfie</a>
+        {% endif %}
+      </div>
+    </div>
+      <div class="modal-footer">
+        <form method="post" action="{% url 'admin_kyc_approve' profile.id %}">
+          {% csrf_token %}
+          <input type="hidden" name="review_note" value="Approved" />
+          <button class="btn success" type="submit">Approve</button>
+        </form>
+        <form method="post" action="{% url 'admin_kyc_reject' profile.id %}">
+          {% csrf_token %}
+          <input type="hidden" name="review_note" value="Rejected" />
+          <button class="btn danger" type="submit">Reject</button>
+        </form>
+        <button class="btn ghost" type="button" data-modal-close>Close</button>
+      </div>
+    </div>
+  </div>
+{% endfor %}
+{% endblock %}
+

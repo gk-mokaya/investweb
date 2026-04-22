@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Notifications | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
+
+{% block content %}
+<div class="section-card">
+  <div class="section-header">
+    <div>
+      <div class="section-title">Notifications</div>
+      <div class="card-muted">Latest updates from the platform.</div>
+    </div>
+  </div>
+
+  <div class="table-wrapper">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Level</th>
+          <th>Date</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for note in notifications %}
+          <tr>
+            <td data-label="Title">{{ note.title }}</td>
+            <td data-label="Level">
+              <span class="badge {{ note.level }}">{{ note.get_level_display }}</span>
+            </td>
+            <td data-label="Date">{{ note.created_at|date:"M d, Y H:i" }}</td>
+            <td data-label="Actions">
+              <div class="table-actions">
+                <button class="icon-pill" data-modal-open="#notificationView{{ note.id }}" type="button">
+                  <svg class="icon sm"><use href="#icon-eye"></use></svg>
+                </button>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="4">
+              <div class="empty-state">No notifications yet.</div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "partials/pagination.html" %}
+</div>
+
+{% for note in notifications %}
+  <div class="modal" id="notificationView{{ note.id }}">
+    <div class="modal-backdrop" data-modal-close></div>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title">{{ note.title }}</div>
+        <button class="modal-close" type="button" data-modal-close><svg class="icon sm"><use href="#icon-x"></use></svg></button>
+      </div>
+    <div class="modal-body">
+      <div class="modal-subtitle">Notification Details</div>
+      <div class="modal-section-grid">
+        <div class="info-chip">
+          <div class="info-chip-label">Date</div>
+          <div class="info-chip-value">{{ note.created_at|date:"M d, Y H:i" }}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Message</div>
+          <div class="info-chip-value">{{ note.message }}</div>
+        </div>
+      </div>
+    </div>
+      <div class="modal-footer">
+        <button class="btn ghost" type="button" data-modal-close>Close</button>
+      </div>
+    </div>
+  </div>
+{% endfor %}
+{% endblock %}
+

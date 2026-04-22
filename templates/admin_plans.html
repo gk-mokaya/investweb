@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block title %}Plan Management | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
+
+{% block content %}
+<div class="section-card">
+  <div class="section-header">
+    <div>
+      <div class="section-title">Plan Management</div>
+      <div class="card-muted">Create, update, and manage investment plans.</div>
+    </div>
+    <div class="section-actions">
+      <button class="btn primary" data-modal-open="#planCreateModal" type="button">New Plan</button>
+    </div>
+  </div>
+
+  <div class="table-wrapper">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Tier</th>
+          <th>ROI</th>
+          <th>Duration</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for plan in plans %}
+          <tr>
+            <td data-label="Name">{{ plan.name }}</td>
+            <td data-label="Tier">{{ plan.get_plan_tier_display }}</td>
+            <td data-label="ROI">{{ plan.daily_roi }}%</td>
+            <td data-label="Duration">{{ plan.duration_days }} days</td>
+            <td data-label="Status">
+              {% if plan.is_active %}
+                <span class="badge success">Active</span>
+              {% else %}
+                <span class="badge danger">Paused</span>
+              {% endif %}
+            </td>
+            <td data-label="Actions">
+              <div class="table-actions">
+                <button class="icon-pill" data-modal-open="#planPreview{{ plan.id }}" type="button">
+                  <svg class="icon sm"><use href="#icon-eye"></use></svg>
+                </button>
+                <button class="icon-pill" data-modal-open="#planEdit{{ plan.id }}" type="button">
+                  <svg class="icon sm"><use href="#icon-edit"></use></svg>
+                </button>
+                <form method="post" action="{% url 'admin_plan_delete' plan.id %}">
+                  {% csrf_token %}
+                  <button class="icon-pill" type="submit">
+                    <svg class="icon sm"><use href="#icon-trash"></use></svg>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="6">
+              <div class="empty-state">No plans created yet.</div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "partials/pagination.html" %}
+</div>
+
+<div class="modal" id="planCreateModal" data-open="{% if open_create_modal %}true{% endif %}">
+  <div class="modal-backdrop" data-modal-close></div>
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <div class="modal-title">Create Plan</div>
+      <button class="modal-close" type="button" data-modal-close><svg class="icon sm"><use href="#icon-x"></use></svg></button>
+    </div>
+    <form method="post" action="{% url 'admin_plan_create' %}">
+      {% csrf_token %}
+      <div class="modal-body">
+        {% if create_form.non_field_errors %}
+          <div class="alert danger">
+            {% for error in create_form.non_field_errors %}
+              <div>{{ error }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+        <div class="form-grid">
+          {% include "partials/form_field.html" with field=create_form.name %}
+          {% include "partials/form_field.html" with field=create_form.plan_tier %}
+          {% include "partials/form_field.html" with field=create_form.min_amount %}
+          {% include "partials/form_field.html" with field=create_form.max_amount %}
+          {% include "partials/form_field.html" with field=create_form.daily_roi %}
+          {% include "partials/form_field.html" with field=create_form.duration_days %}
+          {% include "partials/form_field.html" with field=create_form.risk_level %}
+          {% include "partials/form_field.html" with field=create_form.payout_frequency %}
+          {% include "partials/form_field.html" with field=create_form.liquidity_terms %}
+          {% include "partials/form_field.html" with field=create_form.lock_period_days %}
+          {% include "partials/form_field.html" with field=create_form.management_fee_pct %}
+          {% include "partials/form_field.html" with field=create_form.early_withdrawal_fee_pct %}
+        </div>
+        {% include "partials/form_field.html" with field=create_form.description %}
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Capital Protection</label>
+            <div class="toggle-row">
+              {{ create_form.capital_protection }}
+              <span class="toggle-label">Enable protection</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Active</label>
+            <div class="toggle-row">
+              {{ create_form.is_active }}
+              <span class="toggle-label">Plan is active</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn ghost" type="button" data-modal-close>Cancel</button>
+        <button class="btn primary" type="submit">Save Plan</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% for plan, form in plan_forms %}
+  <div class="modal" id="planEdit{{ plan.id }}" data-open="{% if edit_plan_id == plan.id %}true{% endif %}">
+    <div class="modal-backdrop" data-modal-close></div>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title">Edit Plan</div>
+        <button class="modal-close" type="button" data-modal-close><svg class="icon sm"><use href="#icon-x"></use></svg></button>
+      </div>
+      <form method="post" action="{% url 'admin_plan_edit' plan.id %}">
+        {% csrf_token %}
+        <div class="modal-body">
+          {% if edit_plan_id == plan.id and form.non_field_errors %}
+            <div class="alert danger">
+              {% for error in form.non_field_errors %}
+                <div>{{ error }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+          <div class="form-grid">
+            {% include "partials/form_field.html" with field=form.name %}
+            {% include "partials/form_field.html" with field=form.plan_tier %}
+            {% include "partials/form_field.html" with field=form.min_amount %}
+            {% include "partials/form_field.html" with field=form.max_amount %}
+            {% include "partials/form_field.html" with field=form.daily_roi %}
+            {% include "partials/form_field.html" with field=form.duration_days %}
+            {% include "partials/form_field.html" with field=form.risk_level %}
+            {% include "partials/form_field.html" with field=form.payout_frequency %}
+            {% include "partials/form_field.html" with field=form.liquidity_terms %}
+            {% include "partials/form_field.html" with field=form.lock_period_days %}
+            {% include "partials/form_field.html" with field=form.management_fee_pct %}
+            {% include "partials/form_field.html" with field=form.early_withdrawal_fee_pct %}
+          </div>
+          {% include "partials/form_field.html" with field=form.description %}
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Capital Protection</label>
+              <div class="toggle-row">
+                {{ form.capital_protection }}
+                <span class="toggle-label">Enable protection</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Active</label>
+              <div class="toggle-row">
+                {{ form.is_active }}
+                <span class="toggle-label">Plan is active</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn ghost" type="button" data-modal-close>Cancel</button>
+          <button class="btn primary" type="submit">Update Plan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endfor %}
+
+{% for plan in plans %}
+  <div class="modal" id="planPreview{{ plan.id }}">
+    <div class="modal-backdrop" data-modal-close></div>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title">Plan Preview</div>
+        <button class="modal-close" type="button" data-modal-close><svg class="icon sm"><use href="#icon-x"></use></svg></button>
+      </div>
+    <div class="modal-body">
+      <div class="modal-subtitle">Plan Summary</div>
+      <div class="modal-section-grid">
+        <div class="info-chip">
+          <div class="info-chip-label">Name</div>
+          <div class="info-chip-value">{{ plan.name }}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Tier</div>
+          <div class="info-chip-value">{{ plan.get_plan_tier_display }}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Daily ROI</div>
+          <div class="info-chip-value">{{ plan.daily_roi }}%</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Duration</div>
+          <div class="info-chip-value">{{ plan.duration_days }} days</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Min Amount</div>
+          <div class="info-chip-value">{{ plan.min_amount }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Max Amount</div>
+          <div class="info-chip-value">{% if plan.max_amount %}{{ plan.max_amount }}{% else %}No limit{% endif %}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Total Return</div>
+          <div class="info-chip-value">{{ plan.total_return }}%</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Risk</div>
+          <div class="info-chip-value">{{ plan.risk_level }}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Liquidity</div>
+          <div class="info-chip-value">{{ plan.liquidity_terms }}</div>
+        </div>
+      </div>
+    </div>
+      <div class="modal-footer">
+        <button class="btn ghost" type="button" data-modal-close>Close</button>
+      </div>
+    </div>
+  </div>
+{% endfor %}
+{% endblock %}
+

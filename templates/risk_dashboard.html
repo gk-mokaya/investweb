@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Risk Dashboard | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
+
+{% block content %}
+<div class="section-card">
+  <div class="section-header">
+    <div>
+      <div class="section-title">Risk Dashboard</div>
+      <div class="card-muted">Users requiring additional review.</div>
+    </div>
+  </div>
+  <div class="table-wrapper">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Reasons</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in risky_users %}
+          <tr>
+            <td data-label="User">{{ item.user.username }}</td>
+            <td data-label="Reasons">
+              <div class="list-stack">
+                {% for reason in item.reasons %}
+                  <span class="badge warning">{{ reason }}</span>
+                {% endfor %}
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="2">
+              <div class="empty-state">No risky users detected.</div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+

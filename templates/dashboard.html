@@ -1,0 +1,331 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
+
+{% block content %}
+<div class="card-grid dashboard-cards">
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Total Invested</div>
+        <div class="card-muted">All active investments</div>
+      </div>
+      <span class="badge info">Capital</span>
+    </div>
+    <div class="metric-value">{{ total_invested }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</div>
+    <svg class="sparkline" viewBox="0 0 90 28" preserveAspectRatio="none">
+      <polyline points="{{ sparkline_points.line }}" />
+    </svg>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Total Earned</div>
+        <div class="card-muted">Accumulated profit</div>
+      </div>
+      <span class="badge success">Profit</span>
+    </div>
+    <div class="metric-value">{{ total_earned }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</div>
+    <svg class="sparkline" viewBox="0 0 90 28" preserveAspectRatio="none">
+      <polyline points="{{ sparkline_points.line }}" />
+    </svg>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Available Balance</div>
+        <div class="card-muted">Available for new plans</div>
+      </div>
+      <span class="badge info">Wallet</span>
+    </div>
+    <div class="metric-value">{% if wallet %}{{ wallet.total_balance }}{% else %}0{% endif %} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</div>
+    <svg class="sparkline" viewBox="0 0 90 28" preserveAspectRatio="none">
+      <polyline points="{{ sparkline_points.line }}" />
+    </svg>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Bonus Tracker</div>
+        <div class="card-muted">Referral reward progress</div>
+      </div>
+      {% if bonus and bonus.is_unlocked %}
+        <span class="badge success">Unlocked</span>
+      {% else %}
+        <span class="badge warning">In progress</span>
+      {% endif %}
+    </div>
+    <div class="metric-value">{% if bonus %}{{ bonus.achieved_profit }}{% else %}0{% endif %} / {% if bonus %}{{ bonus.required_profit }}{% else %}0{% endif %}</div>
+    <svg class="sparkline" viewBox="0 0 90 28" preserveAspectRatio="none">
+      <polyline points="{{ sparkline_points.line }}" />
+    </svg>
+  </div>
+</div>
+
+<div class="chart-grid">
+  <div class="section-card chart-card">
+    <div class="section-header">
+      <div>
+        <div class="section-title">Profit Trend (7 Days)</div>
+        <div class="card-muted">Latest earnings snapshot</div>
+      </div>
+    </div>
+    <div class="line-chart">
+      <svg viewBox="0 0 320 180" preserveAspectRatio="none">
+        <polyline class="line-area" points="{{ line_points.area }}" />
+        <polyline class="line-path" points="{{ line_points.line }}" />
+      </svg>
+    </div>
+    <div class="chart-legend">
+      {% for point in profit_points %}
+        <span class="chip">{{ point.label }}: {{ point.value }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</span>
+      {% empty %}
+        <div class="card-muted">Profits will appear once your investments generate returns.</div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="section-card chart-card">
+    <div class="section-header">
+      <div>
+        <div class="section-title">Allocation Share</div>
+        <div class="card-muted">Top plan distribution</div>
+      </div>
+    </div>
+    {% with top=allocation.0 %}
+      <div class="donut" style="--pct: {% if top %}{{ top.percent }}{% else %}0{% endif %};">
+        <div class="donut-center">
+          <div class="donut-value">{% if top %}{{ top.percent }}%{% else %}0%{% endif %}</div>
+          <div class="card-muted">{% if top %}{{ top.name }}{% else %}No plan yet{% endif %}</div>
+        </div>
+      </div>
+    {% endwith %}
+    <div class="list-stack">
+      {% for row in allocation %}
+        <div>
+          <div class="card-header">
+            <div>
+              <div class="card-title">{{ row.name }}</div>
+              <div class="card-muted">{{ row.total }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</div>
+            </div>
+            <span class="badge info">{{ row.percent }}%</span>
+          </div>
+          <div class="progress"><span style="width: {{ row.percent }}%"></span></div>
+        </div>
+      {% empty %}
+        <div class="empty-state">No investments yet. Choose a plan to get started.</div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="section-card chart-card">
+    <div class="section-header">
+      <div>
+        <div class="section-title">Bonus Progress</div>
+        <div class="card-muted">Reward unlock status</div>
+      </div>
+    </div>
+    {% if bonus and bonus.required_profit %}
+      {% widthratio bonus.achieved_profit bonus.required_profit 100 as bonus_pct %}
+    {% else %}
+      {% with bonus_pct=0 %}
+      {% endwith %}
+    {% endif %}
+    <div class="donut donut-success" style="--pct: {% if bonus and bonus.required_profit %}{{ bonus_pct }}{% else %}0{% endif %};">
+      <div class="donut-center">
+        <div class="donut-value">
+          {% if bonus and bonus.required_profit %}{{ bonus_pct }}%{% else %}0%{% endif %}
+        </div>
+        <div class="card-muted">
+          {% if bonus %}{{ bonus.achieved_profit }} / {{ bonus.required_profit }}{% else %}No bonus yet{% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="list-stack">
+      <div class="chip">Unlocked: {% if bonus and bonus.is_unlocked %}Yes{% else %}No{% endif %}</div>
+      <div class="chip">Required profit: {% if bonus %}{{ bonus.required_profit }}{% else %}0{% endif %}</div>
+    </div>
+  </div>
+</div>
+
+<div class="section-card">
+  <div class="section-header">
+    <div>
+      <div class="section-title">Recent Investments</div>
+      <div class="card-muted">Most recent activity</div>
+    </div>
+    <div class="section-actions">
+      <a class="btn ghost" href="{% url 'my_investments' %}">View all</a>
+      <a class="btn primary" href="{% url 'plans' %}">New investment</a>
+    </div>
+  </div>
+  <div class="table-wrapper">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Plan</th>
+          <th>Amount</th>
+          <th>Start</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for investment in investments %}
+          <tr>
+            <td data-label="Plan">{{ investment.plan.name }}</td>
+            <td data-label="Amount">{{ investment.amount }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</td>
+            <td data-label="Start">{{ investment.start_date|date:"M d, Y" }}</td>
+            <td data-label="Status">
+              {% if investment.is_completed %}
+                <span class="badge success">Completed</span>
+              {% else %}
+                <span class="badge info">Active</span>
+              {% endif %}
+            </td>
+            <td data-label="Actions">
+              <div class="table-actions">
+                <button class="icon-pill" data-modal-open="#investmentModal{{ investment.id }}" type="button">
+                  <svg class="icon sm"><use href="#icon-eye"></use></svg>
+                </button>
+                <button class="icon-pill" data-modal-open="#investmentSchedule{{ investment.id }}" type="button">
+                  <svg class="icon sm"><use href="#icon-calendar"></use></svg>
+                </button>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="5">
+              <div class="empty-state">No investments yet.</div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% for investment in investments %}
+  <div class="modal" id="investmentModal{{ investment.id }}">
+    <div class="modal-backdrop" data-modal-close></div>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title">Investment Details</div>
+        <button class="modal-close" type="button" data-modal-close><svg class="icon sm"><use href="#icon-x"></use></svg></button>
+      </div>
+    <div class="modal-body">
+      <div class="modal-subtitle">Plan Info</div>
+      <div class="modal-section-grid">
+        <div class="info-chip">
+          <div class="info-chip-label">Wallet</div>
+          <div class="info-chip-value">
+            {% if investment.wallet %}{{ investment.wallet.name }} - {{ investment.wallet.get_wallet_type_display }}{% else %}-{% endif %}
+          </div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Plan</div>
+          <div class="info-chip-value">{{ investment.plan.name }}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Amount</div>
+          <div class="info-chip-value">{{ investment.amount }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Start Date</div>
+          <div class="info-chip-value">{{ investment.start_date|date:"M d, Y H:i" }}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">End Date</div>
+          <div class="info-chip-value">{{ investment.end_date|date:"M d, Y" }}</div>
+        </div>
+      </div>
+      <div class="modal-subtitle">Earnings & Preferences</div>
+      <div class="modal-section-grid">
+        <div class="info-chip">
+          <div class="info-chip-label">Total Earned</div>
+          <div class="info-chip-value">{{ investment.total_earned }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Auto Reinvest</div>
+          <div class="info-chip-value">{% if investment.auto_reinvest %}Enabled{% else %}Off{% endif %}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Status</div>
+          <div class="info-chip-value">{% if investment.is_completed %}Completed{% else %}Active{% endif %}</div>
+        </div>
+      </div>
+    </div>
+      <div class="modal-footer">
+        <button class="btn ghost" type="button" data-modal-close>Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="investmentSchedule{{ investment.id }}">
+    <div class="modal-backdrop" data-modal-close></div>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title">Profit Schedule</div>
+        <button class="modal-close" type="button" data-modal-close><svg class="icon sm"><use href="#icon-x"></use></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-subtitle">Investment Summary</div>
+        <div class="modal-section-grid">
+          <div class="info-chip">
+            <div class="info-chip-label">Wallet</div>
+            <div class="info-chip-value">
+              {% if investment.wallet %}{{ investment.wallet.name }} - {{ investment.wallet.get_wallet_type_display }}{% else %}-{% endif %}
+            </div>
+          </div>
+          <div class="info-chip">
+            <div class="info-chip-label">Plan</div>
+            <div class="info-chip-value">{{ investment.plan.name }}</div>
+          </div>
+          <div class="info-chip">
+            <div class="info-chip-label">Amount</div>
+            <div class="info-chip-value">{{ investment.amount }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</div>
+          </div>
+          <div class="info-chip">
+            <div class="info-chip-label">Total Earned</div>
+            <div class="info-chip-value">{{ investment.total_earned }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</div>
+          </div>
+          <div class="info-chip">
+            <div class="info-chip-label">Status</div>
+            <div class="info-chip-value">{% if investment.is_completed %}Completed{% else %}Active{% endif %}</div>
+          </div>
+        </div>
+        <div class="modal-subtitle">Profit Schedule (Latest 30 days)</div>
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if investment.profit_schedule %}
+                {% for profit in investment.profit_schedule %}
+                  <tr>
+                    <td data-label="Date">{{ profit.date|date:"M d, Y" }}</td>
+                    <td data-label="Amount">{{ profit.amount }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</td>
+                  </tr>
+                {% endfor %}
+              {% else %}
+                <tr>
+                  <td colspan="2">
+                    <div class="empty-state">No profit records yet.</div>
+                  </td>
+                </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn ghost" type="button" data-modal-close>Close</button>
+      </div>
+    </div>
+  </div>
+{% endfor %}
+{% endblock %}
+

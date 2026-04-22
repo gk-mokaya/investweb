@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Pending Withdrawals | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
+
+{% block content %}
+<div class="section-card">
+  <div class="section-header">
+    <div>
+      <div class="section-title">Withdrawals Review</div>
+      <div class="card-muted">Filter and action withdrawals.</div>
+    </div>
+  </div>
+
+  <form method="get">
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Status</label>
+        <select name="status">
+          {% for value, label in status_choices %}
+            <option value="{{ value }}" {% if request.GET.status == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Search</label>
+        <input type="text" name="q" value="{{ request.GET.q }}" placeholder="User or wallet address" />
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content: flex-start;">
+      <button class="btn primary" type="submit">Apply Filters</button>
+      <a class="btn ghost" href="{% url 'admin_pending_withdrawals' %}">Clear</a>
+    </div>
+  </form>
+</div>
+
+<div class="section-card">
+  <div class="section-header">
+    <div>
+      <div class="section-title">Withdrawal Queue</div>
+      <div class="card-muted">Action required items.</div>
+    </div>
+  </div>
+  <div class="table-wrapper">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Crypto</th>
+          <th>Method</th>
+          <th>Amount</th>
+          <th>Status</th>
+          <th>Created</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for withdrawal in withdrawals %}
+          <tr>
+            <td data-label="User">{{ withdrawal.user.username }}</td>
+            <td data-label="Crypto">{{ withdrawal.crypto.symbol }} ({{ withdrawal.crypto.network }})</td>
+            <td data-label="Method">{{ withdrawal.get_method_display }}</td>
+            <td data-label="Amount">{{ withdrawal.amount }}</td>
+            <td data-label="Status">{{ withdrawal.get_status_display }}</td>
+            <td data-label="Created">{{ withdrawal.created_at|date:"M d, Y" }}</td>
+            <td data-label="Actions">
+              <div class="table-actions">
+                <button class="icon-pill" data-modal-open="#adminWithdrawalView{{ withdrawal.id }}" type="button">
+                  <svg class="icon sm"><use href="#icon-eye"></use></svg>
+                </button>
+                <form method="post" action="{% url 'admin_withdrawal_approve' withdrawal.id %}">
+                  {% csrf_token %}
+                  <button class="btn small success" type="submit">Approve</button>
+                </form>
+                <form method="post" action="{% url 'admin_withdrawal_reject' withdrawal.id %}">
+                  {% csrf_token %}
+                  <button class="btn small danger" type="submit">Reject</button>
+                </form>
+                <form method="post" action="{% url 'admin_withdrawal_paid' withdrawal.id %}">
+                  {% csrf_token %}
+                  <button class="btn small ghost" type="submit">Completed</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="7">
+              <div class="empty-state">No withdrawals found.</div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "partials/pagination.html" %}
+</div>
+
+{% for withdrawal in withdrawals %}
+  <div class="modal" id="adminWithdrawalView{{ withdrawal.id }}">
+    <div class="modal-backdrop" data-modal-close></div>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title">Withdrawal Details</div>
+        <button class="modal-close" type="button" data-modal-close><svg class="icon sm"><use href="#icon-x"></use></svg></button>
+      </div>
+    <div class="modal-body">
+      <div class="modal-subtitle">Withdrawal Summary</div>
+      <div class="modal-section-grid">
+        <div class="info-chip">
+          <div class="info-chip-label">User</div>
+          <div class="info-chip-value">{{ withdrawal.user.username }}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Wallet</div>
+          <div class="info-chip-value">
+            {% if withdrawal.wallet %}{{ withdrawal.wallet.name }} - {{ withdrawal.wallet.get_wallet_type_display }}{% else %}-{% endif %}
+          </div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Crypto</div>
+          <div class="info-chip-value">{{ withdrawal.crypto.symbol }} ({{ withdrawal.crypto.network }})</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Method</div>
+          <div class="info-chip-value">{{ withdrawal.get_method_display }}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Amount</div>
+          <div class="info-chip-value">{{ withdrawal.amount }}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Wallet</div>
+          <div class="info-chip-value">{{ withdrawal.wallet_address }}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Network</div>
+          <div class="info-chip-value">{{ withdrawal.destination_network|default:'-' }}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Memo Tag</div>
+          <div class="info-chip-value">{{ withdrawal.memo_tag|default:'-' }}</div>
+        </div>
+      </div>
+    </div>
+      <div class="modal-footer">
+        <button class="btn ghost" type="button" data-modal-close>Close</button>
+      </div>
+    </div>
+  </div>
+{% endfor %}
+{% endblock %}
+

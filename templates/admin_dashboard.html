@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
+
+{% block content %}
+<div class="card-grid">
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Total Users</div>
+        <div class="card-muted">Registered accounts</div>
+      </div>
+      <span class="badge info">Users</span>
+    </div>
+    <div class="metric-value">{{ counts.users }}</div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Total Invested</div>
+        <div class="card-muted">All active portfolios</div>
+      </div>
+      <span class="badge info">Capital</span>
+    </div>
+    <div class="metric-value">{{ counts.invested }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Active Plans</div>
+        <div class="card-muted">Available offerings</div>
+      </div>
+      <span class="badge info">Plans</span>
+    </div>
+    <div class="metric-value">{{ counts.active_plans }}</div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Pending Deposits</div>
+        <div class="card-muted">Awaiting confirmation</div>
+      </div>
+      <span class="badge warning">{{ counts.deposits }}</span>
+    </div>
+    <div class="metric-value">{{ counts.deposits }}</div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Pending Withdrawals</div>
+        <div class="card-muted">Require action</div>
+      </div>
+      <span class="badge warning">{{ counts.withdrawals }}</span>
+    </div>
+    <div class="metric-value">{{ counts.withdrawals }}</div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Pending KYC</div>
+        <div class="card-muted">Verification queue</div>
+      </div>
+      <span class="badge warning">{{ counts.kyc }}</span>
+    </div>
+    <div class="metric-value">{{ counts.kyc }}</div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Inactive Wallets</div>
+        <div class="card-muted">Needs activation</div>
+      </div>
+      <span class="badge warning">{{ counts.wallets }}</span>
+    </div>
+    <div class="metric-value">{{ counts.wallets }}</div>
+  </div>
+</div>
+
+<div class="section-card">
+  <div class="section-header">
+    <div>
+      <div class="section-title">Operations Center</div>
+      <div class="card-muted">Review KYC, deposits, withdrawals, and plan management.</div>
+    </div>
+    <div class="section-actions">
+      <form method="post" action="{% url 'admin_sync_profits' %}" style="display:inline-flex;">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{% url 'admin_dashboard' %}" />
+        <button class="btn ghost" type="submit">Sync Investment Profits</button>
+      </form>
+      <a class="btn primary" href="{% url 'admin_operations' %}">Open Admin Operations</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Logs | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
+
+{% block content %}
+<div class="section-card">
+  <div class="section-header">
+    <div>
+      <div class="section-title">Audit Logs</div>
+      <div class="card-muted">Track administrative activity.</div>
+    </div>
+    <div class="section-actions">
+      <a class="btn ghost" href="{% url 'admin_audit_logs_export' %}">Export CSV</a>
+    </div>
+  </div>
+  <div class="table-wrapper">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Actor</th>
+          <th>Action</th>
+          <th>Entity</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+          <tr>
+            <td data-label="Timestamp">{{ log.created_at|date:"M d, Y H:i" }}</td>
+            <td data-label="Actor">{% if log.actor %}{{ log.actor.username }}{% else %}System{% endif %}</td>
+            <td data-label="Action">{{ log.action }}</td>
+            <td data-label="Entity">{{ log.entity }} #{{ log.entity_id }}</td>
+            <td data-label="Actions">
+              <div class="table-actions">
+                <button class="icon-pill" data-modal-open="#auditView{{ log.id }}" type="button">
+                  <svg class="icon sm"><use href="#icon-eye"></use></svg>
+                </button>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="5">
+              <div class="empty-state">No audit logs found.</div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "partials/pagination.html" %}
+</div>
+
+{% for log in logs %}
+  <div class="modal" id="auditView{{ log.id }}">
+    <div class="modal-backdrop" data-modal-close></div>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title">Audit Detail</div>
+        <button class="modal-close" type="button" data-modal-close><svg class="icon sm"><use href="#icon-x"></use></svg></button>
+      </div>
+    <div class="modal-body">
+      <div class="modal-subtitle">Log Details</div>
+      <div class="modal-section-grid">
+        <div class="info-chip">
+          <div class="info-chip-label">Action</div>
+          <div class="info-chip-value">{{ log.action }}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Entity</div>
+          <div class="info-chip-value">{{ log.entity }} #{{ log.entity_id }}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Actor</div>
+          <div class="info-chip-value">{% if log.actor %}{{ log.actor.username }}{% else %}System{% endif %}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Timestamp</div>
+          <div class="info-chip-value">{{ log.created_at|date:"M d, Y H:i" }}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Meta</div>
+          <div class="info-chip-value">{{ log.meta }}</div>
+        </div>
+      </div>
+    </div>
+      <div class="modal-footer">
+        <button class="btn ghost" type="button" data-modal-close>Close</button>
+      </div>
+    </div>
+  </div>
+{% endfor %}
+{% endblock %}
+

@@ -1,0 +1,27 @@
+{% extends "auth_base.html" %}
+
+{% block title %}Login | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
+{% block auth_heading %}Welcome back to {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
+{% block auth_subheading %}Sign in with your email to continue to your dashboard.{% endblock %}
+
+{% block content %}
+<form method="post" class="auth-form">
+  {% csrf_token %}
+  <input type="hidden" name="next" value="" />
+  <div class="list-stack">
+    {% include "partials/form_field.html" with field=form.username %}
+    {% include "partials/form_field.html" with field=form.password %}
+  </div>
+  <div class="auth-row">
+    <a href="{% url 'password_reset' %}">Forgot password?</a>
+  </div>
+  <div class="modal-footer auth-footer-actions">
+    <button class="btn primary" type="submit">Sign in</button>
+  </div>
+</form>
+<div class="auth-divider"><span>or</span></div>
+<div class="auth-switch">
+  New here? <a href="{% url 'register' %}">Create an account</a>
+</div>
+{% endblock %}
+

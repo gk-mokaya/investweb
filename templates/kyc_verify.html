@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block title %}KYC Verification | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
+
+{% block content %}
+<div class="section-card">
+  <div class="section-header">
+    <div>
+      <div class="section-title">KYC Verification</div>
+      <div class="card-muted">Complete your identity verification.</div>
+    </div>
+    <div class="section-actions">
+      <button class="btn primary" data-modal-open="#kycModal" type="button">Submit KYC</button>
+    </div>
+  </div>
+  <div class="list-stack">
+    <div>
+      <div class="card-muted">Status</div>
+      <div>{{ kyc_profile.get_status_display }}</div>
+    </div>
+    <div>
+      <div class="card-muted">Completion</div>
+      <div>{{ kyc_profile.completion_percent }}%</div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="kycModal" data-open="{% if open_kyc_modal %}true{% endif %}">
+  <div class="modal-backdrop" data-modal-close></div>
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <div class="modal-title">KYC Verification</div>
+      <button class="modal-close" type="button" data-modal-close><svg class="icon sm"><use href="#icon-x"></use></svg></button>
+    </div>
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <input type="hidden" name="kyc_step" value="{{ kyc_step }}" />
+      <div class="modal-body">
+        {% if form.non_field_errors %}
+          <div class="alert danger">
+            {% for error in form.non_field_errors %}
+              <div>{{ error }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+        <div class="stepper">
+          <div class="step {% if kyc_step == '1' %}active{% elif kyc_step != '1' %}done{% endif %}">
+            <span class="step-index">1</span>
+            <span>Profile Info</span>
+          </div>
+          <div class="step {% if kyc_step == '2' %}active{% elif kyc_step == '3' %}done{% endif %}">
+            <span class="step-index">2</span>
+            <span>Address Info</span>
+          </div>
+          <div class="step {% if kyc_step == '3' %}active{% endif %}">
+            <span class="step-index">3</span>
+            <span>Upload Docs</span>
+          </div>
+        </div>
+
+        {% if kyc_step == '1' %}
+          <div class="form-grid">
+            {% include "partials/form_field.html" with field=form.full_name %}
+            {% include "partials/form_field.html" with field=form.date_of_birth %}
+            {% include "partials/form_field.html" with field=form.country %}
+            {% include "partials/form_field.html" with field=form.phone_number %}
+            {% include "partials/form_field.html" with field=form.source_of_funds %}
+            {% include "partials/form_field.html" with field=form.source_of_funds_other %}
+          </div>
+        {% elif kyc_step == '2' %}
+          <div class="form-grid">
+            {% include "partials/form_field.html" with field=form.address_line %}
+            {% include "partials/form_field.html" with field=form.city %}
+            {% include "partials/form_field.html" with field=form.postal_code %}
+            {% include "partials/form_field.html" with field=form.country_of_residence %}
+            {% include "partials/form_field.html" with field=form.tax_id %}
+          </div>
+        {% else %}
+          <div class="form-grid">
+            {% include "partials/form_field.html" with field=form.id_type %}
+            {% include "partials/form_field.html" with field=form.id_number %}
+          </div>
+          <div class="file-grid">
+            <div class="file-card">
+              <div class="file-card-title">ID Document Front</div>
+              <div class="file-preview" data-preview-id="{{ form.id_document_front.id_for_label }}">
+                {% if kyc_profile.id_document_front %}
+                  {% with fname=kyc_profile.id_document_front.name|lower %}
+                    {% if fname|slice:"-4" == ".pdf" %}
+                      <div class="file-preview-icon">
+                        <svg class="icon lg"><use href="#icon-clipboard"></use></svg>
+                      </div>
+                      <div class="file-preview-name">{{ kyc_profile.id_document_front.name }}</div>
+                    {% else %}
+                      <img src="{{ kyc_profile.id_document_front.url }}" alt="ID front preview">
+                      <div class="file-preview-name">{{ kyc_profile.id_document_front.name }}</div>
+                    {% endif %}
+                  {% endwith %}
+                {% else %}
+                  <div class="file-preview-empty">Upload JPG, PNG, or PDF</div>
+                {% endif %}
+              </div>
+              {{ form.id_document_front }}
+              <div class="form-help">Accepted: JPG, PNG, PDF</div>
+            </div>
+            <div class="file-card">
+              <div class="file-card-title">ID Document Back</div>
+              <div class="file-preview" data-preview-id="{{ form.id_document_back.id_for_label }}">
+                {% if kyc_profile.id_document_back %}
+                  {% with fname=kyc_profile.id_document_back.name|lower %}
+                    {% if fname|slice:"-4" == ".pdf" %}
+                      <div class="file-preview-icon">
+                        <svg class="icon lg"><use href="#icon-clipboard"></use></svg>
+                      </div>
+                      <div class="file-preview-name">{{ kyc_profile.id_document_back.name }}</div>
+                    {% else %}
+                      <img src="{{ kyc_profile.id_document_back.url }}" alt="ID back preview">
+                      <div class="file-preview-name">{{ kyc_profile.id_document_back.name }}</div>
+                    {% endif %}
+                  {% endwith %}
+                {% else %}
+                  <div class="file-preview-empty">Upload JPG, PNG, or PDF</div>
+                {% endif %}
+              </div>
+              {{ form.id_document_back }}
+              <div class="form-help">Accepted: JPG, PNG, PDF</div>
+            </div>
+            <div class="file-card">
+              <div class="file-card-title">Selfie Photo</div>
+              <div class="file-preview" data-preview-id="{{ form.selfie_photo.id_for_label }}">
+                {% if kyc_profile.selfie_photo %}
+                  {% with fname=kyc_profile.selfie_photo.name|lower %}
+                    {% if fname|slice:"-4" == ".pdf" %}
+                      <div class="file-preview-icon">
+                        <svg class="icon lg"><use href="#icon-clipboard"></use></svg>
+                      </div>
+                      <div class="file-preview-name">{{ kyc_profile.selfie_photo.name }}</div>
+                    {% else %}
+                      <img src="{{ kyc_profile.selfie_photo.url }}" alt="Selfie preview">
+                      <div class="file-preview-name">{{ kyc_profile.selfie_photo.name }}</div>
+                    {% endif %}
+                  {% endwith %}
+                {% else %}
+                  <div class="file-preview-empty">Use camera or upload JPG/PNG</div>
+                {% endif %}
+              </div>
+              {{ form.selfie_photo }}
+              <div class="form-help">Camera capture available on mobile</div>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+      <div class="modal-footer">
+        <button class="btn ghost" type="button" data-modal-close>Cancel</button>
+        {% if kyc_step == '3' %}
+          <button class="btn primary" type="submit">Submit KYC</button>
+        {% else %}
+          <button class="btn primary" type="submit">Save & Continue</button>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+

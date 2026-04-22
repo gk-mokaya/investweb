@@ -1,0 +1,75 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}{{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}</title>
+  {% if SYSTEM_SETTINGS.SITE_FAVICON %}
+    <link rel="icon" href="{{ SYSTEM_SETTINGS.SITE_FAVICON }}" />
+  {% endif %}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}" />
+</head>
+<body>
+  {% include "partials/icons.html" %}
+  <div class="auth-shell-ui">
+    <div class="auth-stage">
+      <aside class="auth-left">
+        <div class="auth-left-orb auth-left-orb-top"></div>
+        <div class="auth-left-orb auth-left-orb-bottom"></div>
+        <div class="auth-brand">
+          <div class="auth-brand-mark">
+            {% if SYSTEM_SETTINGS.SITE_LOGO %}
+              <img src="{{ SYSTEM_SETTINGS.SITE_LOGO }}" alt="{{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}" />
+            {% else %}
+              <svg class="icon"><use href="#icon-activity"></use></svg>
+            {% endif %}
+          </div>
+          <div class="auth-brand-meta">
+            <div class="auth-brand-name">{{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}</div>
+            <div class="auth-brand-tagline">{{ SYSTEM_SETTINGS.SITE_TAGLINE|default:'Investment Suite' }}</div>
+          </div>
+        </div>
+        <div class="auth-left-copy">
+          <h1>{% block auth_heading %}Run your investments from one secure platform.{% endblock %}</h1>
+          <p>{% block auth_subheading %}Manage deposits, withdrawals, portfolio performance, and account security in one place.{% endblock %}</p>
+        </div>
+        <div class="auth-left-foot">Secure access. Fast operations. Clear visibility.</div>
+      </aside>
+      <section class="auth-right">
+        <div class="auth-card">
+          <div class="auth-card-head">
+            <div class="auth-card-brand-mark">
+              {% if SYSTEM_SETTINGS.SITE_LOGO %}
+                <img src="{{ SYSTEM_SETTINGS.SITE_LOGO }}" alt="{{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}" />
+              {% else %}
+                <svg class="icon"><use href="#icon-activity"></use></svg>
+              {% endif %}
+            </div>
+            <div class="auth-card-brand-name">{{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}</div>
+          </div>
+          {% include "partials/alerts.html" %}
+          {% block content %}{% endblock %}
+        </div>
+      </section>
+    </div>
+  </div>
+  <script>
+    (function () {
+      var qs = new URLSearchParams(window.location.search);
+      if (qs.get('next')) {
+        var nextInputs = document.querySelectorAll('form input[name="next"]');
+        nextInputs.forEach(function (input) {
+          input.value = qs.get('next');
+        });
+      }
+    })();
+  </script>
+  <script src="{% static 'js/app.js' %}" defer></script>
+  {% block auth_extra_scripts %}{% endblock %}
+</body>
+</html>
+

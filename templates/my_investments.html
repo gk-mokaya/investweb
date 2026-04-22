@@ -1,0 +1,318 @@
+{% extends "base.html" %}
+
+{% block title %}My Investments | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
+
+{% block content %}
+<div class="card-grid">
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Active Investments</div>
+        <div class="card-muted">Running plans</div>
+      </div>
+      <span class="badge info">{{ investments|length }}</span>
+    </div>
+    <div class="metric-value">{{ investments|length }}</div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Available Balance</div>
+        <div class="card-muted">Ready to invest</div>
+      </div>
+      <span class="badge info">Wallet</span>
+    </div>
+    <div class="metric-value">{{ WALLET_SUMMARY.total_balance|default:'0' }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</div>
+  </div>
+</div>
+
+<div class="section-card">
+  <div class="section-header">
+    <div>
+      <div class="section-title">Investments</div>
+      <div class="card-muted">Manage and review your investments.</div>
+    </div>
+    <div class="section-actions">
+      <button class="btn primary" data-modal-open="#investmentModal" type="button">New Investment</button>
+    </div>
+  </div>
+
+    <div class="table-wrapper">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Plan</th>
+          <th>Amount</th>
+          <th>Start</th>
+          <th>End</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for investment in investments %}
+          <tr>
+            <td data-label="Plan">{{ investment.plan.name }}</td>
+            <td data-label="Amount">{{ investment.amount }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</td>
+            <td data-label="Start">{{ investment.start_date|date:"M d, Y" }}</td>
+            <td data-label="End">{{ investment.end_date|date:"M d, Y" }}</td>
+            <td data-label="Status">
+              {% if investment.is_completed %}
+                <span class="badge success">Completed</span>
+              {% else %}
+                <span class="badge info">Active</span>
+              {% endif %}
+            </td>
+            <td data-label="Actions">
+              <div class="table-actions">
+                <button class="icon-pill" data-modal-open="#investmentView{{ investment.id }}" type="button">
+                  <svg class="icon sm"><use href="#icon-eye"></use></svg>
+                </button>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="6">
+              <div class="empty-state">No investments yet.</div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "partials/pagination.html" %}
+</div>
+
+{% for investment in investments %}
+  <div class="modal" id="investmentView{{ investment.id }}">
+    <div class="modal-backdrop" data-modal-close></div>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title">Investment Details</div>
+        <button class="modal-close" type="button" data-modal-close><svg class="icon sm"><use href="#icon-x"></use></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="plan-details-section">
+          <div class="modal-section-title">Investment Details</div>
+          <div class="plan-detail-grid investment-detail-grid">
+            <div class="detail-item">
+              <div class="detail-label">Wallet</div>
+              <div class="detail-value">{% if investment.wallet %}{{ investment.wallet.name }} - {{ investment.wallet.get_wallet_type_display }}{% else %}-{% endif %}</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">Plan</div>
+              <div class="detail-value">{{ investment.plan.name }}</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">Amount</div>
+              <div class="detail-value">{{ investment.amount }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">Start Date</div>
+              <div class="detail-value">{{ investment.start_date|date:"M d, Y" }}</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">End Date</div>
+              <div class="detail-value">{{ investment.end_date|date:"M d, Y" }}</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">Status</div>
+              <div class="detail-value">{% if investment.is_completed %}Completed{% else %}Active{% endif %}</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">Daily ROI</div>
+              <div class="detail-value">{{ investment.plan.daily_roi }}%</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">Duration</div>
+              <div class="detail-value">{{ investment.plan.duration_days }} days</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">Payout Frequency</div>
+              <div class="detail-value">{{ investment.plan.get_payout_frequency_display }}</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">Liquidity</div>
+              <div class="detail-value">{{ investment.plan.get_liquidity_terms_display }}</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">Total Earned</div>
+              <div class="detail-value">{{ investment.total_earned }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">Auto Reinvest</div>
+              <div class="detail-value">{% if investment.auto_reinvest %}Enabled{% else %}Off{% endif %}</div>
+            </div>
+          </div>
+        </div>
+        <div class="schedule-section">
+          <div class="modal-section-title">Profit Schedule</div>
+          <div class="table-wrapper">
+            <table class="table schedule-table"
+                   data-schedule-table
+                   data-start="{{ investment.start_date|date:'Y-m-d' }}"
+                   data-end="{{ investment.end_date|date:'Y-m-d' }}"
+                   data-amount="{{ investment.amount }}"
+                   data-roi="{{ investment.plan.daily_roi }}"
+                   data-fee="{{ investment.plan.management_fee_pct }}"
+                   data-currency="{{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}"
+                   data-completed="{% if investment.is_completed %}true{% else %}false{% endif %}"
+                   data-earned='[{% for profit in investment.profit_schedule %}{"date":"{{ profit.date|date:"Y-m-d" }}","amount":"{{ profit.amount }}"}{% if not forloop.last %},{% endif %}{% endfor %}]'>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Daily Profit</th>
+                  <th>Cumulative Profit</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td colspan="4">
+                    <div class="empty-state">Schedule loading...</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn ghost" type="button" data-modal-close>Close</button>
+      </div>
+    </div>
+  </div>
+{% endfor %}
+
+<div class="modal" id="investmentModal" data-open="{% if open_investment_modal %}true{% endif %}"> data-open="{% if open_investment_modal %}true{% endif %}">
+  <div class="modal-backdrop" data-modal-close></div>
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <div class="modal-title">Start Investment</div>
+      <button class="modal-close" type="button" data-modal-close><svg class="icon sm"><use href="#icon-x"></use></svg></button>
+    </div>
+    <form method="post" action="{% url 'create_investment' %}" data-investment-form data-currency="{{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.path }}" />
+      <div class="modal-body">
+        {% if create_form.non_field_errors %}
+          <div class="alert danger">
+            {% for error in create_form.non_field_errors %}
+              <div>{{ error }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+        <div class="investment-compact">
+          <div class="investment-form">
+            <div class="form-grid compact investment-fields">
+              {% include "partials/form_field.html" with field=create_form.plan %}
+              {% include "partials/form_field.html" with field=create_form.wallet %}
+              <div class="form-group">
+                <label>Wallet Details</label>
+                <div class="wallet-info-panel" id="investmentWalletBalance">
+                  <div class="wallet-info-row">
+                    <span class="wallet-info-label">Selected wallet</span>
+                    <span class="wallet-info-value" data-wallet-selected-name>Choose a wallet</span>
+                  </div>
+                  <div class="wallet-info-row">
+                    <span class="wallet-info-label">Available balance</span>
+                    <span class="wallet-info-value" data-wallet-balance-help>Select a wallet to see balance.</span>
+                  </div>
+                  <div class="wallet-info-foot">
+                    <span class="badge info" data-wallet-balance-status style="display:none;"></span>
+                  </div>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="{{ create_form.amount.id_for_label }}">Amount <span class="error-text">*</span></label>
+                {{ create_form.amount }}
+                <div class="form-help" data-plan-amount-help>Select a plan to see min/max.</div>
+                {% for error in create_form.amount.errors %}
+                  <div class="error-text">{{ error }}</div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+          <div class="investment-overview" data-investment-overview>
+            <div class="overview-title">Investment Overview</div>
+            <div class="overview-sub" data-overview-name>Select a plan to preview returns.</div>
+            <div class="overview-grid">
+              <div class="overview-item">
+                <div class="overview-label">Daily Profit</div>
+                <div class="overview-value" data-overview-daily>-</div>
+              </div>
+              <div class="overview-item">
+                <div class="overview-label">Gross Profit</div>
+                <div class="overview-value" data-overview-gross>-</div>
+              </div>
+              <div class="overview-item">
+                <div class="overview-label">Total Payout</div>
+                <div class="overview-value" data-overview-payout>-</div>
+              </div>
+              <div class="overview-item">
+                <div class="overview-label">Duration</div>
+                <div class="overview-value" data-overview-duration>-</div>
+              </div>
+            </div>
+            <div class="overview-list">
+              <div class="overview-row">
+                <span>Min / Max</span>
+                <strong data-overview-minmax>-</strong>
+              </div>
+              <div class="overview-row">
+                <span>Daily ROI</span>
+                <strong data-overview-roi>-</strong>
+              </div>
+              <div class="overview-row">
+                <span>Payout Frequency</span>
+                <strong data-overview-frequency>-</strong>
+              </div>
+              <div class="overview-row">
+                <span>Liquidity</span>
+                <strong data-overview-liquidity>-</strong>
+              </div>
+              <div class="overview-row">
+                <span>Lock Period</span>
+                <strong data-overview-lock>-</strong>
+              </div>
+              <div class="overview-row">
+                <span>Risk</span>
+                <strong data-overview-risk>-</strong>
+              </div>
+              <div class="overview-row">
+                <span>Fees</span>
+                <strong data-overview-fees>-</strong>
+              </div>
+              <div class="overview-row">
+                <span>Protection</span>
+                <strong data-overview-protection>-</strong>
+              </div>
+            </div>
+          </div>
+          <div class="investment-toggles-compact">
+            <div class="toggle-pair">
+              <label class="modern-switch">
+                {{ create_form.auto_reinvest }}
+                <span class="modern-switch-track"></span>
+                <span class="toggle-label">Auto reinvest</span>
+              </label>
+              <label class="modern-switch">
+                {{ create_form.risk_acknowledged }}
+                <span class="modern-switch-track"></span>
+                <span class="toggle-label">Risk acknowledged</span>
+              </label>
+              <div class="form-help risk-help">Required: you must acknowledge the risks before submitting.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn ghost" type="button" data-modal-close>Cancel</button>
+        <button class="btn primary" type="submit">Invest</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+

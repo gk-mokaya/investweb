@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Pending Deposits | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
+
+{% block content %}
+<div class="section-card">
+  <div class="section-header">
+    <div>
+      <div class="section-title">Deposits Review</div>
+      <div class="card-muted">Filter and action deposits.</div>
+    </div>
+  </div>
+
+  <form method="get">
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Status</label>
+        <select name="status">
+          {% for value, label in status_choices %}
+            <option value="{{ value }}" {% if request.GET.status == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Crypto</label>
+        <select name="crypto">
+          <option value="">All</option>
+          {% for crypto in crypto_choices %}
+            <option value="{{ crypto.id }}" {% if request.GET.crypto|stringformat:"s" == crypto.id|stringformat:"s" %}selected{% endif %}>
+              {{ crypto.symbol }} ({{ crypto.network }})
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Search</label>
+        <input type="text" name="q" value="{{ request.GET.q }}" placeholder="User or hash" />
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content: flex-start;">
+      <button class="btn primary" type="submit">Apply Filters</button>
+      <a class="btn ghost" href="{% url 'admin_pending_deposits' %}">Clear</a>
+    </div>
+  </form>
+</div>
+
+<div class="section-card">
+  <div class="section-header">
+    <div>
+      <div class="section-title">Deposit Queue</div>
+      <div class="card-muted">Action required items.</div>
+    </div>
+  </div>
+  <div class="table-wrapper">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Crypto</th>
+          <th>Method</th>
+          <th>Amount</th>
+          <th>Status</th>
+          <th>Created</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for deposit in deposits %}
+          <tr>
+            <td data-label="User">{{ deposit.user.username }}</td>
+            <td data-label="Crypto">{{ deposit.crypto.symbol }} ({{ deposit.crypto.network }})</td>
+            <td data-label="Method">{{ deposit.get_method_display }}</td>
+            <td data-label="Amount">{{ deposit.amount }}</td>
+            <td data-label="Status">{{ deposit.get_status_display }}</td>
+            <td data-label="Created">{{ deposit.created_at|date:"M d, Y" }}</td>
+            <td data-label="Actions">
+              <div class="table-actions">
+                <button class="icon-pill" data-modal-open="#adminDepositView{{ deposit.id }}" type="button">
+                  <svg class="icon sm"><use href="#icon-eye"></use></svg>
+                </button>
+                <form method="post" action="{% url 'admin_deposit_verify' deposit.id %}">
+                  {% csrf_token %}
+                  <button class="btn small ghost" type="submit">Verify</button>
+                </form>
+                <form method="post" action="{% url 'admin_deposit_approve' deposit.id %}">
+                  {% csrf_token %}
+                  <button class="btn small success" type="submit">Approve</button>
+                </form>
+                <form method="post" action="{% url 'admin_deposit_reject' deposit.id %}">
+                  {% csrf_token %}
+                  <button class="btn small danger" type="submit">Reject</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="7">
+              <div class="empty-state">No deposits found.</div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "partials/pagination.html" %}
+</div>
+
+{% for deposit in deposits %}
+  <div class="modal" id="adminDepositView{{ deposit.id }}">
+    <div class="modal-backdrop" data-modal-close></div>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title">Deposit Details</div>
+        <button class="modal-close" type="button" data-modal-close><svg class="icon sm"><use href="#icon-x"></use></svg></button>
+      </div>
+    <div class="modal-body">
+      <div class="modal-subtitle">Deposit Summary</div>
+      <div class="modal-section-grid">
+        <div class="info-chip">
+          <div class="info-chip-label">User</div>
+          <div class="info-chip-value">{{ deposit.user.username }}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Wallet</div>
+          <div class="info-chip-value">
+            {% if deposit.wallet %}{{ deposit.wallet.name }} - {{ deposit.wallet.get_wallet_type_display }}{% else %}-{% endif %}
+          </div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Crypto</div>
+          <div class="info-chip-value">{{ deposit.crypto.symbol }} ({{ deposit.crypto.network }})</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Method</div>
+          <div class="info-chip-value">{{ deposit.get_method_display }}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Amount</div>
+          <div class="info-chip-value">{{ deposit.amount }}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Status</div>
+          <div class="info-chip-value">{{ deposit.get_status_display }}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Payment Address</div>
+          <div class="info-chip-value">{{ deposit.pay_address|default:'-' }}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Hash</div>
+          <div class="info-chip-value">{{ deposit.transaction_hash|default:'-' }}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Sender Address</div>
+          <div class="info-chip-value">{{ deposit.sender_address|default:'-' }}</div>
+        </div>
+      </div>
+    </div>
+      <div class="modal-footer">
+        <button class="btn ghost" type="button" data-modal-close>Close</button>
+      </div>
+    </div>
+  </div>
+{% endfor %}
+{% endblock %}
+
