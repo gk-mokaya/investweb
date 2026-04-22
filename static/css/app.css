@@ -2734,6 +2734,8 @@ input[type="checkbox"]:checked::after {
 
 .auth-stage {
   min-height: calc(100vh - clamp(24px, 4vw, 44px));
+  width: min(1000px, 100%);
+  margin-inline: auto;
   border-radius: 22px;
   overflow: hidden;
   border: 1px solid rgba(79, 120, 196, 0.34);
@@ -2777,7 +2779,7 @@ input[type="checkbox"]:checked::after {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: clamp(32px, 6vw, 62px);
+  margin-bottom: clamp(14px, 2.5vw, 24px);
 }
 
 .auth-brand-mark {
@@ -2818,17 +2820,45 @@ input[type="checkbox"]:checked::after {
 .auth-left-copy h1 {
   margin: 0;
   font-family: "Space Grotesk", sans-serif;
-  font-size: clamp(34px, 4.4vw, 54px);
-  line-height: 1.06;
-  max-width: 11ch;
+  font-size: clamp(26px, 2.8vw, 42px);
+  line-height: 1.1;
+  max-width: none;
+  white-space: nowrap;
 }
 
 .auth-left-copy p {
-  margin: 18px 0 0;
+  margin: 0;
   max-width: 38ch;
   font-size: 17px;
   line-height: 1.65;
   color: #b4c5e7;
+}
+
+.auth-left-highlights {
+  margin-top: 22px;
+  display: grid;
+  gap: 10px;
+}
+
+.auth-left-highlight {
+  border: 1px solid rgba(127, 170, 238, 0.3);
+  background: linear-gradient(145deg, rgba(20, 45, 89, 0.5), rgba(12, 31, 70, 0.78));
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.auth-left-highlight-title {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: #e8f2ff;
+}
+
+.auth-left-highlight-text {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #a9c0e6;
+  line-height: 1.45;
 }
 
 .auth-left-foot {
@@ -2845,7 +2875,7 @@ input[type="checkbox"]:checked::after {
 }
 
 .auth-card {
-  width: min(340px, 100%);
+  width: min(390px, 100%);
   background: linear-gradient(180deg, rgba(22, 35, 62, 0.96), rgba(16, 28, 52, 0.98));
   border: 1px solid rgba(88, 126, 196, 0.36);
   border-radius: 22px;
