@@ -49,11 +49,14 @@
     </form>
 
     <section class="chat-prechat" data-chat-prechat>
+      {% if not request.user.is_authenticated %}
+        <div class="chat-prechat-badge">Visitor mode</div>
+      {% endif %}
       <div class="chat-prechat-note">
         {% if request.user.is_authenticated %}
           You are chatting as {{ request.user.get_full_name|default:request.user.username|default:'a member' }}.
         {% else %}
-          Leave your name and email so we can keep the conversation organized.
+          Share your name and email so we can keep the conversation together and reply in one place.
         {% endif %}
       </div>
       <div class="chat-prechat-grid">

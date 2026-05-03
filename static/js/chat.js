@@ -53,6 +53,13 @@
     run();
   }
 
+  function openSupportChatWidget() {
+    var widget = document.querySelector('[data-chat-widget]');
+    if (!widget) return;
+    var launcher = widget.querySelector('[data-chat-toggle]');
+    if (launcher) launcher.click();
+  }
+
   function renderMessages(thread, messages, currentRole) {
     if (!thread) return;
     thread.innerHTML = '';
@@ -174,7 +181,7 @@
       var showBanner = total > 0 && isMobileChatMode() && !openState;
       unreadBanner.hidden = !showBanner;
       if (showBanner) {
-        unreadBanner.textContent = total === 1 ? '1 new message' : total + ' new messages';
+        unreadBanner.textContent = String(total);
       }
     }
 
@@ -849,6 +856,13 @@
 
   document.querySelectorAll('[data-chat-widget]').forEach(initWidget);
   document.querySelectorAll('[data-chat-inbox]').forEach(initInbox);
+
+  document.addEventListener('click', function (event) {
+    var openSupport = event.target.closest('[data-chat-open-support-chat]');
+    if (!openSupport) return;
+    event.preventDefault();
+    openSupportChatWidget();
+  });
 })();
 
 

@@ -297,12 +297,15 @@
             </div>
           </div>
           <div class="investment-toggles-compact">
-            <label class="modern-switch modern-switch-full">
+            <label class="modern-switch modern-switch-full risk-switch">
               {{ create_form.risk_acknowledged }}
               <span class="modern-switch-track"></span>
-              <span class="toggle-label">Risk acknowledged</span>
+              <span class="risk-switch-copy">
+                <span class="toggle-label">I understand the risks</span>
+                <span class="risk-switch-state" data-risk-state>Off</span>
+              </span>
             </label>
-            <div class="form-help risk-help">Required: you must acknowledge the risks before submitting.</div>
+            <div class="form-help risk-help" data-risk-help hidden>Please turn on risk acknowledgment before submitting.</div>
           </div>
         </div>
       </div>

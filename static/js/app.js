@@ -944,7 +944,19 @@
     var walletSelect = form.querySelector('[name=\"wallet\"]');
     var amountInput = form.querySelector('[name=\"amount\"]');
     var riskAck = form.querySelector('[name=\"risk_acknowledged\"]');
+    var riskSwitch = form.querySelector('.risk-switch');
+    var riskHelp = form.querySelector('[data-risk-help]');
     var submitBtn = form.querySelector('button[type=\"submit\"], input[type=\"submit\"]');
+    var updateRiskState = function () {
+      if (!riskAck) return;
+      if (riskSwitch) {
+        riskSwitch.classList.toggle('is-on', riskAck.checked);
+      }
+      var riskState = form.querySelector('[data-risk-state]');
+      if (riskState) {
+        riskState.textContent = riskAck.checked ? 'On' : 'Off';
+      }
+    };
     if (planSelect) {
       planSelect.addEventListener('change', function () {
         updateInvestmentForm(form);
@@ -962,13 +974,28 @@
     }
     if (riskAck) {
       riskAck.setAttribute('required', 'required');
-      var syncSubmit = function () {
-        if (!submitBtn) return;
-        submitBtn.disabled = !riskAck.checked;
-      };
-      riskAck.addEventListener('change', syncSubmit);
-      syncSubmit();
+      riskAck.addEventListener('change', function () {
+        updateRiskState();
+        if (riskAck.checked && riskHelp) {
+          riskHelp.hidden = true;
+        }
+      });
+      riskAck.addEventListener('blur', updateRiskState);
+      updateRiskState();
+      if (riskHelp) riskHelp.hidden = true;
     }
+    form.addEventListener('submit', function (event) {
+      if (!riskAck || riskAck.checked) return;
+      event.preventDefault();
+      if (riskHelp) {
+        riskHelp.hidden = false;
+      }
+      if (riskSwitch) {
+        riskSwitch.classList.add('is-on');
+        riskSwitch.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+      riskAck.focus();
+    });
     updateInvestmentForm(form);
   });
 

@@ -70,15 +70,17 @@
           </select>
         </div>
         <div class="form-group">
-          <label class="toggle-row">
+          <label class="modern-switch modern-switch-admin">
             <span class="toggle-label">Accept deposits</span>
             <input type="checkbox" name="enable_deposits" {% if payment_config.enable_deposits %}checked{% endif %} />
+            <span class="modern-switch-track"></span>
           </label>
         </div>
         <div class="form-group">
-          <label class="toggle-row">
+          <label class="modern-switch modern-switch-admin">
             <span class="toggle-label">Allow withdrawals</span>
             <input type="checkbox" name="enable_withdrawals" {% if payment_config.enable_withdrawals %}checked{% endif %} />
+            <span class="modern-switch-track"></span>
           </label>
         </div>
         <div class="form-group">
