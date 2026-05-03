@@ -12,9 +12,10 @@ from accounts.forms import (
     BrandedPasswordResetForm,
     BrandedSetPasswordForm,
     EmailAuthenticationForm,
+    ProfileUpdateForm,
     RegisterForm,
 )
-from accounts.models import Notification, LoginLog
+from accounts.models import Notification, UserProfile
 from kyc.forms import KYCForm
 from kyc.models import KYCProfile
 from accounts.services import create_notification
@@ -38,7 +39,7 @@ class UserLoginView(LoginView):
 
 
 class UserLogoutView(LogoutView):
-    next_page = reverse_lazy('login')
+    next_page = reverse_lazy('home')
     http_method_names = ['get', 'post', 'options']
 
     def get(self, request, *args, **kwargs):
@@ -74,22 +75,36 @@ class ProfileView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        user_profile, _ = UserProfile.objects.get_or_create(user=self.request.user)
         profile, _ = KYCProfile.objects.get_or_create(user=self.request.user)
         context['kyc_profile'] = profile
+        context['user_profile'] = user_profile
+        context['profile_form'] = context.get('profile_form') or ProfileUpdateForm(user=self.request.user, profile=profile)
+        context['open_profile_modal'] = False
         context['open_kyc_modal'] = False
         context['kyc_step'] = '1'
         context['kyc_form'] = KYCForm(instance=profile, step=context['kyc_step'])
         context['form'] = context['kyc_form']
-        context['login_logs'] = LoginLog.objects.filter(user=self.request.user).order_by('-created_at')[:5]
         context['wallets'] = Wallet.objects.filter(user=self.request.user).order_by('-is_default', 'created_at')
-        context['wallet_create_form'] = WalletCreateForm()
-        context['wallet_transfer_form'] = WalletTransferForm(user=self.request.user)
+        context['wallet_total_balance'] = sum((wallet.total_balance for wallet in context['wallets']), start=0)
         context['open_wallet_create_modal'] = False
         context['open_wallet_transfer_modal'] = False
         return context
 
     def post(self, request, *args, **kwargs):
         action = request.POST.get('action', 'kyc_submit')
+
+        if action == 'profile_update':
+            profile, _ = KYCProfile.objects.get_or_create(user=request.user)
+            form = ProfileUpdateForm(request.POST, user=request.user, profile=profile)
+            if form.is_valid():
+                form.save()
+                messages.success(request, "Profile updated successfully.")
+                return redirect('profile')
+            context = self.get_context_data()
+            context['profile_form'] = form
+            context['open_profile_modal'] = True
+            return self.render_to_response(context)
 
         if action == 'wallet_create':
             form = WalletCreateForm(request.POST)

@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Wallet Management | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
+
+{% block content %}
+<div class="section-card">
+  <div class="section-header">
+    <div>
+      <div class="section-title">Wallet Management</div>
+      <div class="card-muted">Activate, deactivate, and inspect user wallets.</div>
+    </div>
+    <div class="section-actions">
+      <a class="btn ghost" href="{% url 'admin_dashboard' %}">Back to dashboard</a>
+    </div>
+  </div>
+
+  <div class="table-wrapper">
+    <table class="table">
+      <thead>
+        <tr>
+          <th colspan="8">
+            <form class="filters-bar filters-inline" method="get" data-auto-submit="true">
+              <input class="filters-search" type="text" name="q" value="{{ request.GET.q }}" placeholder="Search by user or wallet name" />
+              <select class="filter-chip" name="status">
+                <option value="">All wallets</option>
+                {% for value, label in status_choices %}
+                  <option value="{{ value }}" {% if request.GET.status == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+              <div class="filters-actions">
+                <a class="btn ghost" href="{% url 'admin_wallets' %}">Clear</a>
+              </div>
+            </form>
+          </th>
+        </tr>
+        <tr>
+          <th>User</th>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Main</th>
+          <th>Bonus</th>
+          <th>Profit</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for wallet in wallets %}
+          <tr>
+            <td data-label="User">{{ wallet.user.username }}</td>
+            <td data-label="Name">{{ wallet.name }}</td>
+            <td data-label="Type">{{ wallet.get_wallet_type_display }}</td>
+            <td data-label="Main">{{ wallet.main_balance }}</td>
+            <td data-label="Bonus">{{ wallet.bonus_balance }}</td>
+            <td data-label="Profit">{{ wallet.profit_balance }}</td>
+            <td data-label="Status">
+              {% if wallet.is_active %}
+                <span class="badge success">Active</span>
+              {% else %}
+                <span class="badge warning">Inactive</span>
+              {% endif %}
+            </td>
+            <td data-label="Actions">
+              <div class="table-actions">
+                <form method="post" action="{% url 'admin_wallet_approve' wallet.id %}" data-confirm="Activate this wallet?">
+                  {% csrf_token %}
+                  <button class="btn small success" type="submit">Activate</button>
+                </form>
+                <form method="post" action="{% url 'admin_wallet_reject' wallet.id %}" data-confirm="Deactivate this wallet?">
+                  {% csrf_token %}
+                  <button class="btn small danger" type="submit">Deactivate</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="8"><div class="empty-state">No wallets found.</div></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% include "partials/pagination.html" %}
+</div>
+{% endblock %}

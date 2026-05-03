@@ -6,43 +6,33 @@
 <div class="section-card">
   <div class="section-header">
     <div>
-      <div class="section-title">Withdrawals Review</div>
-      <div class="card-muted">Filter and action withdrawals.</div>
+      <div class="section-title">Withdrawal reviews</div>
+      <div class="card-muted">Review and action withdrawal requests.</div>
+    </div>
+    <div class="section-actions">
+      <a class="btn ghost" href="{% url 'admin_dashboard' %}">Dashboard</a>
     </div>
   </div>
 
-  <form method="get">
-    <div class="form-grid">
-      <div class="form-group">
-        <label>Status</label>
-        <select name="status">
-          {% for value, label in status_choices %}
-            <option value="{{ value }}" {% if request.GET.status == value %}selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Search</label>
-        <input type="text" name="q" value="{{ request.GET.q }}" placeholder="User or wallet address" />
-      </div>
-    </div>
-    <div class="modal-footer" style="justify-content: flex-start;">
-      <button class="btn primary" type="submit">Apply Filters</button>
-      <a class="btn ghost" href="{% url 'admin_pending_withdrawals' %}">Clear</a>
-    </div>
-  </form>
-</div>
-
-<div class="section-card">
-  <div class="section-header">
-    <div>
-      <div class="section-title">Withdrawal Queue</div>
-      <div class="card-muted">Action required items.</div>
-    </div>
-  </div>
   <div class="table-wrapper">
     <table class="table">
       <thead>
+        <tr>
+          <th colspan="7">
+            <form class="filters-bar filters-inline" method="get" data-auto-submit="true">
+              <input class="filters-search" type="text" name="q" value="{{ request.GET.q }}" placeholder="Search user or wallet address" />
+              <select class="filter-chip" name="status">
+                <option value="">All statuses</option>
+                {% for value, label in status_choices %}
+                  <option value="{{ value }}" {% if request.GET.status == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+              <div class="filters-actions">
+                <a class="btn ghost" href="{% url 'admin_pending_withdrawals' %}">Clear</a>
+              </div>
+            </form>
+          </th>
+        </tr>
         <tr>
           <th>User</th>
           <th>Crypto</th>
@@ -100,48 +90,20 @@
     <div class="modal-backdrop" data-modal-close></div>
     <div class="modal-dialog">
       <div class="modal-header">
-        <div class="modal-title">Withdrawal Details</div>
+        <div class="modal-title">Withdrawal details</div>
         <button class="modal-close" type="button" data-modal-close><svg class="icon sm"><use href="#icon-x"></use></svg></button>
       </div>
-    <div class="modal-body">
-      <div class="modal-subtitle">Withdrawal Summary</div>
-      <div class="modal-section-grid">
-        <div class="info-chip">
-          <div class="info-chip-label">User</div>
-          <div class="info-chip-value">{{ withdrawal.user.username }}</div>
-        </div>
-        <div class="info-chip">
-          <div class="info-chip-label">Wallet</div>
-          <div class="info-chip-value">
-            {% if withdrawal.wallet %}{{ withdrawal.wallet.name }} - {{ withdrawal.wallet.get_wallet_type_display }}{% else %}-{% endif %}
-          </div>
-        </div>
-        <div class="info-chip">
-          <div class="info-chip-label">Crypto</div>
-          <div class="info-chip-value">{{ withdrawal.crypto.symbol }} ({{ withdrawal.crypto.network }})</div>
-        </div>
-        <div class="info-chip">
-          <div class="info-chip-label">Method</div>
-          <div class="info-chip-value">{{ withdrawal.get_method_display }}</div>
-        </div>
-        <div class="info-chip">
-          <div class="info-chip-label">Amount</div>
-          <div class="info-chip-value">{{ withdrawal.amount }}</div>
-        </div>
-        <div class="info-chip">
-          <div class="info-chip-label">Wallet</div>
-          <div class="info-chip-value">{{ withdrawal.wallet_address }}</div>
-        </div>
-        <div class="info-chip">
-          <div class="info-chip-label">Network</div>
-          <div class="info-chip-value">{{ withdrawal.destination_network|default:'-' }}</div>
-        </div>
-        <div class="info-chip">
-          <div class="info-chip-label">Memo Tag</div>
-          <div class="info-chip-value">{{ withdrawal.memo_tag|default:'-' }}</div>
+      <div class="modal-body">
+        <div class="modal-subtitle">Withdrawal summary</div>
+        <div class="modal-section-grid">
+          <div class="info-chip"><div class="info-chip-label">User</div><div class="info-chip-value">{{ withdrawal.user.username }}</div></div>
+          <div class="info-chip"><div class="info-chip-label">Wallet</div><div class="info-chip-value">{% if withdrawal.wallet %}{{ withdrawal.wallet.name }} - {{ withdrawal.wallet.get_wallet_type_display }}{% else %}-{% endif %}</div></div>
+          <div class="info-chip"><div class="info-chip-label">Crypto</div><div class="info-chip-value">{{ withdrawal.crypto.symbol }} ({{ withdrawal.crypto.network }})</div></div>
+          <div class="info-chip"><div class="info-chip-label">Method</div><div class="info-chip-value">{{ withdrawal.get_method_display }}</div></div>
+          <div class="info-chip"><div class="info-chip-label">Amount</div><div class="info-chip-value">{{ withdrawal.amount }}</div></div>
+          <div class="info-chip"><div class="info-chip-label">Wallet</div><div class="info-chip-value">{{ withdrawal.wallet_address }}</div></div>
         </div>
       </div>
-    </div>
       <div class="modal-footer">
         <button class="btn ghost" type="button" data-modal-close>Close</button>
       </div>
@@ -149,4 +111,3 @@
   </div>
 {% endfor %}
 {% endblock %}
-

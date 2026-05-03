@@ -6,28 +6,35 @@
     </button>
     <div class="page-titles">
       <div class="page-title">
-        {% if current == 'dashboard' %}Dashboard
+        {% if current == 'dashboard' %}Account Overview
         {% elif current == 'plans' %}Investment Plans
-        {% elif current == 'my_investments' %}My Investments
-        {% elif current == 'deposit_list' %}Deposits
-        {% elif current == 'withdrawal_list' %}Withdrawals
-        {% elif current == 'profile' %}Profile & KYC
-        {% elif current == 'notifications' %}Notifications
-        {% elif current == 'admin_dashboard' %}Admin Dashboard
-        {% elif current == 'admin_operations' %}Admin Operations
+        {% elif current == 'my_investments' %}Active Investments
+        {% elif current == 'deposit_list' %}Deposit History
+        {% elif current == 'withdrawal_list' %}Withdrawal History
+        {% elif current == 'profile' %}Profile & Verification
+        {% elif current == 'notifications' %}Alerts
+        {% elif current == 'admin_dashboard' %}Staff Dashboard
+        {% elif current == 'admin_user_list' %}Accounts
+        {% elif current == 'admin_user_detail' %}Account Details
+        {% elif current == 'admin_plans' %}Plan Management
+        {% elif current == 'admin_pending_deposits' %}Deposit Reviews
+        {% elif current == 'admin_pending_withdrawals' %}Withdrawal Reviews
+        {% elif current == 'admin_wallets' %}Wallet Management
+        {% elif current == 'admin_site_settings_page' %}Site Settings
+        {% elif current == 'admin_kyc_reviews' %}Verification Reviews
+        {% elif current == 'admin_audit_logs' %}Audit Trail
+        {% elif current == 'admin_risk_dashboard' %}Risk Review
         {% else %}Dashboard{% endif %}
       </div>
       <div class="page-subtitle">{% now "l, M d, Y" %}</div>
     </div>
   </div>
   <div class="topbar-actions">
+    {% include "partials/theme_toggle.html" %}
     <div class="date-chip">
       <svg class="icon sm"><use href="#icon-calendar"></use></svg>
       <span>{% now "l, M d, Y" %}</span>
     </div>
-    <button class="icon-btn" type="button" title="Settings">
-      <svg class="icon"><use href="#icon-settings"></use></svg>
-    </button>
     <div class="notif-wrap" data-notif-wrap>
       <button class="icon-btn notif-btn" type="button" title="Notifications" data-notif-toggle>
         <svg class="icon"><use href="#icon-bell"></use></svg>
@@ -50,18 +57,45 @@
               <div class="notif-item-time">{{ note.created_at|date:"M d, Y H:i" }}</div>
             </button>
           {% empty %}
-            <div class="notif-empty" data-notif-empty>No new notifications.</div>
+            <div class="notif-empty" data-notif-empty>No new alerts.</div>
           {% endfor %}
         </div>
       </div>
     </div>
-    <div class="user-menu">
-      <div class="avatar">{{ request.user.username|default:'U'|slice:':2'|upper }}</div>
-      <div class="user-meta">
-        <div class="user-name">{{ request.user.username }}</div>
-        <div class="user-role">{% if request.user.is_staff %}Super Admin{% else %}Investor{% endif %}</div>
+    <div class="user-menu-wrap" data-user-menu-wrap>
+      <button class="user-menu" type="button" data-user-menu-toggle aria-expanded="false" aria-label="Open account menu">
+        <div class="avatar">{{ request.user.username|default:'U'|slice:':2'|upper }}</div>
+        <div class="user-meta">
+          <div class="user-name">{{ request.user.username }}</div>
+          <div class="user-role">{% if request.user.is_staff %}Staff{% else %}Investor{% endif %}</div>
+        </div>
+        <svg class="icon sm"><use href="#icon-chevron-down"></use></svg>
+      </button>
+      <div class="user-menu-dropdown" data-user-menu-dropdown>
+        <a class="user-menu-item" href="{% url 'profile' %}">
+          <svg class="icon sm"><use href="#icon-user"></use></svg>
+          <span>Profile</span>
+        </a>
+        {% if current == 'profile' %}
+          <button class="user-menu-item" type="button" data-modal-open="#profileModal">
+            <svg class="icon sm"><use href="#icon-edit"></use></svg>
+            <span>Update profile</span>
+          </button>
+        {% else %}
+          <a class="user-menu-item" href="{% url 'profile' %}">
+            <svg class="icon sm"><use href="#icon-edit"></use></svg>
+            <span>Update profile</span>
+          </a>
+        {% endif %}
+        <a class="user-menu-item" href="{% if request.user.is_staff %}{% url 'admin_dashboard' %}{% else %}{% url 'dashboard' %}{% endif %}">
+          <svg class="icon sm"><use href="#icon-home"></use></svg>
+          <span>{% if request.user.is_staff %}Staff dashboard{% else %}Dashboard{% endif %}</span>
+        </a>
+        <a class="user-menu-item danger" href="{% url 'logout' %}">
+          <svg class="icon sm"><use href="#icon-log-out"></use></svg>
+          <span>Logout</span>
+        </a>
       </div>
-      <svg class="icon sm"><use href="#icon-chevron-down"></use></svg>
     </div>
   </div>
 </header>

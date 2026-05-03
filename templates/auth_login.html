@@ -1,8 +1,8 @@
 {% extends "auth_base.html" %}
 
 {% block title %}Login | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
-{% block auth_heading %}Your investment command center{% endblock %}
-{% block auth_subheading %}Access plans, portfolio growth, automated profit payouts, and wallet activity in one secure place.{% endblock %}
+{% block auth_heading %}Welcome back{% endblock %}
+{% block auth_subheading %}Sign in to review balances, plans, deposits, withdrawals, and account activity in one secure place.{% endblock %}
 
 {% block content %}
 <form method="post" class="auth-form">
@@ -13,9 +13,9 @@
     {% include "partials/form_field.html" with field=form.password %}
   </div>
   <div class="auth-row">
-    <a href="{% url 'password_reset' %}">Forgot password?</a>
+    <a href="{% url 'password_reset' %}">Reset password</a>
   </div>
-  <div class="modal-footer auth-footer-actions">
+  <div class="auth-footer-actions">
     <button class="btn primary" type="submit">Sign in</button>
   </div>
 </form>

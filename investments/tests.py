@@ -2,11 +2,17 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.test import TestCase
 from django.utils import timezone
+from django.urls import reverse
 
 from investments.models import DailyProfit, InvestmentPlan, UserInvestment
-from investments.services import apply_daily_profits, sync_investment_profits
+from investments.services import (
+    PROFIT_SYNC_SUMMARY_CACHE_KEY,
+    apply_daily_profits,
+    sync_investment_profits,
+)
 from wallets.models import Wallet
 from wallets.services import get_primary_wallet
 
@@ -88,3 +94,60 @@ class InvestmentProfitSyncTests(TestCase):
         self.assertEqual(second, 0)
         self.assertEqual(DailyProfit.objects.filter(investment=investment).count(), 2)
         self.assertEqual(self.wallet.profit_balance, Decimal('20.00'))
+
+    def test_sync_summary_is_cached_for_admin_dashboard(self):
+        plan = self._create_plan(payout_frequency='daily', duration_days=1, daily_roi='10.00')
+        investment = self._create_investment(plan, amount='100.00')
+
+        cache.delete(PROFIT_SYNC_SUMMARY_CACHE_KEY)
+        sync_investment_profits(process_date=investment.end_date.date())
+
+        summary = cache.get(PROFIT_SYNC_SUMMARY_CACHE_KEY)
+        self.assertIsNotNone(summary)
+        self.assertEqual(summary['payouts_created'], 1)
+        self.assertEqual(summary['investments_completed'], 1)
+
+    def test_dashboard_page_renders_for_logged_in_user(self):
+        from kyc.models import KYCProfile
+
+        KYCProfile.objects.filter(user=self.user).update(status='verified')
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('dashboard'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Stay focused on the numbers that matter.')
+
+
+class PublicMarketingPagesTests(TestCase):
+    def setUp(self):
+        InvestmentPlan.objects.create(
+            name='Starter Growth',
+            plan_tier='starter',
+            min_amount=Decimal('10.00'),
+            max_amount=Decimal('100.00'),
+            daily_roi=Decimal('2.00'),
+            duration_days=7,
+            total_return=Decimal('14.00'),
+            description='A simple entry plan for new investors.',
+            risk_level='low',
+            payout_frequency='daily',
+            liquidity_terms='flexible',
+            lock_period_days=0,
+            management_fee_pct=Decimal('0.00'),
+            capital_protection=True,
+            early_withdrawal_fee_pct=Decimal('0.00'),
+            is_active=True,
+        )
+
+    def test_public_home_page_is_accessible(self):
+        response = self.client.get(reverse('home'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Starter Growth')
+
+    def test_public_plans_page_is_accessible(self):
+        response = self.client.get(reverse('plans'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Starter Growth')

@@ -18,6 +18,28 @@
     <table class="table">
       <thead>
         <tr>
+          <th colspan="6">
+            <form class="filters-bar filters-inline" method="get" data-auto-submit="true">
+              <input class="filters-search" type="text" name="q" value="{{ request.GET.q }}" placeholder="Search plan name or description" />
+              <select class="filter-chip" name="tier">
+                <option value="">All tiers</option>
+                {% for value, label in plan_tier_choices %}
+                  <option value="{{ value }}" {% if request.GET.tier == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+              <select class="filter-chip" name="status">
+                <option value="">All statuses</option>
+                {% for value, label in status_choices %}
+                  <option value="{{ value }}" {% if request.GET.status == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+              <div class="filters-actions">
+                <a class="btn ghost" href="{% url 'admin_plans' %}">Clear</a>
+              </div>
+            </form>
+          </th>
+        </tr>
+        <tr>
           <th>Name</th>
           <th>Tier</th>
           <th>ROI</th>

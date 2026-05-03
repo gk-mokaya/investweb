@@ -3,29 +3,20 @@ from __future__ import annotations
 from datetime import timedelta
 from decimal import Decimal
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
+from django.core.cache import cache
 from django.utils import timezone
 
-from investments.models import BonusTracker, DailyProfit, InvestmentPlan, UserInvestment
+from investments.models import DailyProfit, InvestmentPlan, UserInvestment
 from settingsconfig.utils import get_setting_decimal
 from wallets.models import Wallet
 from wallets.services import credit_wallet, debit_wallet, get_primary_wallet
 from adminpanel.utils import log_action
 
 
-def _update_bonus_progress(user, amount: Decimal) -> None:
-    try:
-        tracker = BonusTracker.objects.select_for_update().get(user=user)
-    except BonusTracker.DoesNotExist:
-        return
-
-    if tracker.is_unlocked:
-        return
-
-    tracker.achieved_profit += amount
-    if tracker.achieved_profit >= tracker.required_profit:
-        tracker.is_unlocked = True
-    tracker.save(update_fields=['achieved_profit', 'is_unlocked'])
+PROFIT_SYNC_SUMMARY_CACHE_KEY = 'investment_profit_sync_last_summary'
+PROFIT_SYNC_SUMMARY_CACHE_TTL = 7 * 24 * 60 * 60
 
 
 @transaction.atomic
@@ -35,7 +26,6 @@ def create_investment(
     amount: Decimal,
     *,
     wallet: Wallet | None = None,
-    auto_reinvest: bool = False,
     risk_acknowledged: bool = False,
 ) -> UserInvestment:
     if wallet is None:
@@ -79,7 +69,6 @@ def create_investment(
         plan=plan,
         amount=amount,
         end_date=end_date,
-        auto_reinvest=auto_reinvest,
         risk_acknowledged=risk_acknowledged,
     )
     log_action(user, 'investment_created', 'investment', investment.id, {'plan': plan.name, 'amount': str(amount)})
@@ -135,6 +124,7 @@ def sync_investment_profits(process_date=None) -> dict:
         'investments_checked': 0,
         'payouts_created': 0,
         'investments_completed': 0,
+        'payouts_skipped': 0,
     }
 
     investments = (
@@ -165,15 +155,34 @@ def sync_investment_profits(process_date=None) -> dict:
             if net_profit <= 0:
                 continue
 
+            payout_wallet = None
+            try:
+                if investment.wallet_id:
+                    payout_wallet = Wallet.objects.select_for_update().filter(pk=investment.wallet_id).first()
+            except ObjectDoesNotExist:
+                payout_wallet = None
+            if not payout_wallet:
+                payout_wallet = get_primary_wallet(investment.user)
+            if payout_wallet:
+                payout_wallet = Wallet.objects.select_for_update().filter(pk=payout_wallet.pk).first()
+            if not payout_wallet:
+                summary['payouts_skipped'] += 1
+                log_action(
+                    None,
+                    'profit_applied',
+                    'investment',
+                    investment.id,
+                    {'date': due_date.isoformat(), 'reason': 'missing_wallet'},
+                )
+                continue
+
             DailyProfit.objects.create(
                 investment=investment,
                 date=due_date,
                 amount=net_profit,
             )
 
-            payout_wallet = investment.wallet or get_primary_wallet(investment.user)
-            if payout_wallet:
-                payout_wallet = Wallet.objects.select_for_update().get(pk=payout_wallet.pk)
+            try:
                 credit_wallet(
                     payout_wallet,
                     net_profit,
@@ -181,9 +190,18 @@ def sync_investment_profits(process_date=None) -> dict:
                     'profit',
                     {'investment_id': investment.id, 'payout_date': due_date.isoformat()},
                 )
+            except Wallet.DoesNotExist:
+                summary['payouts_skipped'] += 1
+                log_action(
+                    None,
+                    'profit_applied',
+                    'investment',
+                    investment.id,
+                    {'date': due_date.isoformat(), 'reason': 'missing_wallet'},
+                )
+                continue
 
             investment.total_earned += net_profit
-            _update_bonus_progress(investment.user, net_profit)
             log_action(
                 None,
                 'profit_applied',
@@ -209,6 +227,15 @@ def sync_investment_profits(process_date=None) -> dict:
         if created_any or should_be_completed:
             investment.save(update_fields=['total_earned', 'is_completed'])
 
+    cache.set(
+        PROFIT_SYNC_SUMMARY_CACHE_KEY,
+        {
+            'ran_at': timezone.now(),
+            'process_date': process_date,
+            **summary,
+        },
+        PROFIT_SYNC_SUMMARY_CACHE_TTL,
+    )
     return summary
 
 
@@ -218,24 +245,12 @@ def apply_daily_profits(process_date=None) -> int:
     return summary['payouts_created']
 
 
-def can_withdraw(user, amount: Decimal) -> tuple[bool, str]:
+def can_withdraw(user, amount: Decimal, *, wallet=None) -> tuple[bool, str]:
     min_amount = get_setting_decimal('MIN_WITHDRAWAL_AMOUNT', default='10')
     if amount < min_amount:
         return False, f"Minimum withdrawal is {min_amount}."
 
-    try:
-        profile = user.userprofile
-        if profile.has_withdrawn:
-            return True, "OK"
-    except Exception:
-        pass
-
-    try:
-        tracker = BonusTracker.objects.get(user=user)
-    except BonusTracker.DoesNotExist:
-        tracker = None
-
-    if tracker and not tracker.is_unlocked:
-        return False, "Bonus requirements not met yet."
+    if wallet is not None and not wallet.has_non_bonus_credit:
+        return False, "You cannot withdraw welcome bonus only. Invest first in order to be able to withdraw."
 
     return True, "OK"

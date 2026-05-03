@@ -1,0 +1,1 @@
+from supportchat.routing import websocket_urlpatterns

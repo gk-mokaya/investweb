@@ -7,10 +7,10 @@
   <div class="section-header">
     <div>
       <div class="section-title">KYC Verification</div>
-      <div class="card-muted">Complete your identity verification.</div>
+      <div class="card-muted">Complete verification to unlock the full account experience.</div>
     </div>
     <div class="section-actions">
-      <button class="btn primary" data-modal-open="#kycModal" type="button">Submit KYC</button>
+      <button class="btn primary" data-modal-open="#kycModal" type="button">Start verification</button>
     </div>
   </div>
   <div class="list-stack">
@@ -29,7 +29,7 @@
   <div class="modal-backdrop" data-modal-close></div>
   <div class="modal-dialog">
     <div class="modal-header">
-      <div class="modal-title">KYC Verification</div>
+      <div class="modal-title">KYC verification</div>
       <button class="modal-close" type="button" data-modal-close><svg class="icon sm"><use href="#icon-x"></use></svg></button>
     </div>
     <form method="post" enctype="multipart/form-data">
@@ -46,15 +46,15 @@
         <div class="stepper">
           <div class="step {% if kyc_step == '1' %}active{% elif kyc_step != '1' %}done{% endif %}">
             <span class="step-index">1</span>
-            <span>Profile Info</span>
+            <span>Profile details</span>
           </div>
           <div class="step {% if kyc_step == '2' %}active{% elif kyc_step == '3' %}done{% endif %}">
             <span class="step-index">2</span>
-            <span>Address Info</span>
+            <span>Address details</span>
           </div>
           <div class="step {% if kyc_step == '3' %}active{% endif %}">
             <span class="step-index">3</span>
-            <span>Upload Docs</span>
+            <span>Upload documents</span>
           </div>
         </div>
 
@@ -82,7 +82,7 @@
           </div>
           <div class="file-grid">
             <div class="file-card">
-              <div class="file-card-title">ID Document Front</div>
+              <div class="file-card-title">ID document front</div>
               <div class="file-preview" data-preview-id="{{ form.id_document_front.id_for_label }}">
                 {% if kyc_profile.id_document_front %}
                   {% with fname=kyc_profile.id_document_front.name|lower %}
@@ -104,7 +104,7 @@
               <div class="form-help">Accepted: JPG, PNG, PDF</div>
             </div>
             <div class="file-card">
-              <div class="file-card-title">ID Document Back</div>
+              <div class="file-card-title">ID document back</div>
               <div class="file-preview" data-preview-id="{{ form.id_document_back.id_for_label }}">
                 {% if kyc_profile.id_document_back %}
                   {% with fname=kyc_profile.id_document_back.name|lower %}
@@ -126,7 +126,7 @@
               <div class="form-help">Accepted: JPG, PNG, PDF</div>
             </div>
             <div class="file-card">
-              <div class="file-card-title">Selfie Photo</div>
+              <div class="file-card-title">Selfie photo</div>
               <div class="file-preview" data-preview-id="{{ form.selfie_photo.id_for_label }}">
                 {% if kyc_profile.selfie_photo %}
                   {% with fname=kyc_profile.selfie_photo.name|lower %}
@@ -153,9 +153,9 @@
       <div class="modal-footer">
         <button class="btn ghost" type="button" data-modal-close>Cancel</button>
         {% if kyc_step == '3' %}
-          <button class="btn primary" type="submit">Submit KYC</button>
+          <button class="btn primary" type="submit">Submit verification</button>
         {% else %}
-          <button class="btn primary" type="submit">Save & Continue</button>
+          <button class="btn primary" type="submit">Save and continue</button>
         {% endif %}
       </div>
     </form>

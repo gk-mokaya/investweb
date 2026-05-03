@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}Account Details | {{ target_user.username }} | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
+
+{% block content %}
+<div class="section-card">
+  <div class="section-header">
+    <div>
+      <div class="section-title">Account details</div>
+      <div class="card-muted">Update access, identity flags, and review account activity.</div>
+    </div>
+    <div class="section-actions">
+      <a class="btn ghost" href="{% url 'admin_user_list' %}">Back to users</a>
+    </div>
+  </div>
+
+  <div class="card-grid admin-detail-grid">
+    <div class="card">
+      <div class="card-title">{{ target_user.username }}</div>
+      <div class="card-muted">{{ target_user.email|default:'No email set' }}</div>
+      <div class="list-stack" style="margin-top:12px;">
+        <span class="badge">{% if target_user.is_superuser %}Admin{% elif target_user.is_staff %}Staff{% else %}Member{% endif %}</span>
+        <span class="badge {% if target_user.is_active %}success{% else %}danger{% endif %}">{% if target_user.is_active %}Active{% else %}Inactive{% endif %}</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Account controls</div>
+      <div class="card-muted">Basic controls for onboarding and payout review.</div>
+      <form method="post" action="{% url 'admin_user_detail' target_user.id %}">
+        {% csrf_token %}
+        <div class="form-grid admin-detail-form-grid" style="margin-top:12px;">
+          <div class="form-group">
+            <label>Username</label>
+            {{ user_form.username }}
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            {{ user_form.email }}
+          </div>
+          <div class="form-group">
+            <label>First name</label>
+            {{ user_form.first_name }}
+          </div>
+          <div class="form-group">
+            <label>Last name</label>
+            {{ user_form.last_name }}
+          </div>
+          <div class="form-group">
+            <label>Active</label>
+            {{ user_form.is_active }}
+          </div>
+          <div class="form-group">
+            <label>Staff</label>
+            {{ user_form.is_staff }}
+          </div>
+          <div class="form-group">
+            <label>Superuser</label>
+            {{ user_form.is_superuser }}
+          </div>
+          <div class="form-group">
+            <label>New user</label>
+            {{ profile_form.is_new_user }}
+          </div>
+          <div class="form-group">
+            <label>Has withdrawn</label>
+            {{ profile_form.has_withdrawn }}
+          </div>
+        </div>
+        <div class="section-actions" style="margin-top:12px;">
+          <button class="btn primary" type="submit">Save Changes</button>
+        </div>
+      </form>
+      <div class="section-actions" style="margin-top:12px;">
+        <form method="post" action="{% url 'admin_user_toggle_active' target_user.id %}" style="display:inline;">
+          {% csrf_token %}
+          <button class="btn ghost" type="submit">{% if target_user.is_active %}Deactivate{% else %}Activate{% endif %}</button>
+        </form>
+        <form method="post" action="{% url 'admin_user_toggle_staff' target_user.id %}" style="display:inline;">
+          {% csrf_token %}
+          <button class="btn ghost" type="submit">{% if target_user.is_staff %}Remove Staff{% else %}Make Staff{% endif %}</button>
+        </form>
+        <form method="post" action="{% url 'admin_user_send_reset_link' target_user.id %}" style="display:inline;">
+          {% csrf_token %}
+          <button class="btn ghost" type="submit" {% if not target_user.email %}disabled title="Add an email address to send a reset link" {% endif %}>Send reset link</button>
+        </form>
+      </div>
+      <div class="card-muted" style="margin-top:8px;">
+        {% if target_user.email %}
+          A secure reset link will be delivered to {{ target_user.email }}.
+        {% else %}
+          Add an email address first to enable password reset delivery.
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section-card">
+  <div class="section-header">
+    <div>
+      <div class="section-title">Verification & activity</div>
+      <div class="card-muted">Compliance and login history for this account.</div>
+    </div>
+  </div>
+
+  <div class="card-grid admin-detail-grid">
+    <div class="card">
+      <div class="card-title">Verification status</div>
+      <div class="metric-value">{% if kyc_profile %}{{ kyc_profile.get_status_display }}{% else %}Not submitted{% endif %}</div>
+      <div class="card-muted">Completion: {% if kyc_profile %}{{ kyc_profile.completion_percent }}{% else %}0{% endif %}%</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Recent login history</div>
+      <div class="list-stack" style="margin-top:10px;">
+        {% for log in login_logs %}
+          <div class="chip">{{ log.created_at|date:"M d, H:i" }} | {{ log.ip_address|default:'Unknown IP' }}</div>
+        {% empty %}
+          <div class="empty-state">No login history yet.</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

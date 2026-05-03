@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}Audit Logs | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
+{% block title %}Audit Trail | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
 
 {% block content %}
 <div class="section-card">
   <div class="section-header">
     <div>
-      <div class="section-title">Audit Logs</div>
+      <div class="section-title">Audit trail</div>
       <div class="card-muted">Track administrative activity.</div>
     </div>
     <div class="section-actions">
@@ -57,11 +57,11 @@
     <div class="modal-backdrop" data-modal-close></div>
     <div class="modal-dialog">
       <div class="modal-header">
-        <div class="modal-title">Audit Detail</div>
+        <div class="modal-title">Audit detail</div>
         <button class="modal-close" type="button" data-modal-close><svg class="icon sm"><use href="#icon-x"></use></svg></button>
       </div>
     <div class="modal-body">
-      <div class="modal-subtitle">Log Details</div>
+      <div class="modal-subtitle">Log details</div>
       <div class="modal-section-grid">
         <div class="info-chip">
           <div class="info-chip-label">Action</div>

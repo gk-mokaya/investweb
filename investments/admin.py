@@ -1,5 +1,5 @@
 from django.contrib import admin
-from investments.models import BonusTracker, DailyProfit, InvestmentPlan, UserInvestment
+from investments.models import DailyProfit, InvestmentPlan, UserInvestment
 
 
 @admin.register(InvestmentPlan)
@@ -20,11 +20,5 @@ class UserInvestmentAdmin(admin.ModelAdmin):
 class DailyProfitAdmin(admin.ModelAdmin):
     list_display = ('investment', 'date', 'amount', 'created_at')
     list_filter = ('date',)
-
-
-@admin.register(BonusTracker)
-class BonusTrackerAdmin(admin.ModelAdmin):
-    list_display = ('user', 'bonus_amount', 'required_profit', 'achieved_profit', 'is_unlocked')
-    search_fields = ('user__username',)
 
 # Register your models here.

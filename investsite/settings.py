@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'channels',
     'accounts.apps.AccountsConfig',
     'wallets',
     'investments',
@@ -45,8 +46,13 @@ INSTALLED_APPS = [
     'deposits',
     'payments',
     'settingsconfig',
+    'dashboard',
+    'users',
+    'finance',
+    'compliance',
     'adminpanel',
     'kyc',
+    'supportchat.apps.SupportChatConfig',
 ]
 
 MIDDLEWARE = [
@@ -56,11 +62,19 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'investments.middleware.InvestmentProfitSyncMiddleware',
     'kyc.middleware.KYCRequiredMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
 ROOT_URLCONF = 'investsite.urls'
+ASGI_APPLICATION = 'investsite.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    }
+}
 
 TEMPLATES = [
     {

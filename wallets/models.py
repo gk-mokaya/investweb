@@ -49,6 +49,16 @@ class Wallet(models.Model):
         return self.main_balance + self.bonus_balance + self.profit_balance
 
     @property
+    def has_non_bonus_credit(self) -> bool:
+        return self.transactions.filter(amount__gt=0).exclude(txn_type='bonus').exists()
+
+    @property
+    def withdrawable_balance(self) -> Decimal:
+        if not self.has_non_bonus_credit:
+            return Decimal('0')
+        return self.total_balance
+
+    @property
     def total_deposits(self) -> Decimal:
         total = self.transactions.filter(txn_type='deposit').aggregate(total=Sum('amount'))['total']
         return total or Decimal('0')

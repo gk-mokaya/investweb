@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Add User | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
+
+{% block content %}
+<div class="section-card">
+  <div class="section-header">
+    <div>
+      <div class="section-title">Add user</div>
+      <div class="card-muted">Create an account and optionally send a password reset link to the email address.</div>
+    </div>
+    <div class="section-actions">
+      <a class="btn ghost" href="{% url 'admin_user_list' %}">Back to users</a>
+    </div>
+  </div>
+
+  <div class="queue-summary-grid platform-summary-grid" style="margin-bottom:14px;">
+    <div class="queue-summary-card no-link">
+      <div class="queue-summary-top">
+        <span class="queue-summary-label">Reset flow</span>
+        <span class="badge info">Email</span>
+      </div>
+      <div class="queue-summary-note">The account can receive a secure password reset link immediately after creation.</div>
+    </div>
+    <div class="queue-summary-card no-link">
+      <div class="queue-summary-top">
+        <span class="queue-summary-label">Access control</span>
+        <span class="badge info">Role</span>
+      </div>
+      <div class="queue-summary-note">Choose whether the account starts as staff or a regular member.</div>
+    </div>
+  </div>
+
+  <form method="post">
+    {% csrf_token %}
+    <div class="card-grid admin-detail-grid">
+      <div class="card">
+        <div class="card-title">Identity</div>
+        <div class="form-grid admin-detail-form-grid" style="margin-top:12px;">
+          {% include "partials/form_field.html" with field=form.username %}
+          {% include "partials/form_field.html" with field=form.email %}
+          {% include "partials/form_field.html" with field=form.first_name %}
+          {% include "partials/form_field.html" with field=form.last_name %}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Access</div>
+        <div class="form-grid admin-detail-form-grid" style="margin-top:12px;">
+          <div class="form-group">
+            <label>Active</label>
+            {{ form.is_active }}
+          </div>
+          <div class="form-group">
+            <label>Staff</label>
+            {{ form.is_staff }}
+          </div>
+          <div class="form-group">
+            <label>Superuser</label>
+            {{ form.is_superuser }}
+          </div>
+          <div class="form-group">
+            <label>Send reset link</label>
+            {{ form.send_reset_link }}
+          </div>
+        </div>
+        <div class="card-muted" style="margin-top:10px;">
+          If enabled, the new account will receive a secure password reset email after creation.
+        </div>
+        <div class="section-actions" style="margin-top:14px;">
+          <button class="btn primary" type="submit">Create user</button>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}

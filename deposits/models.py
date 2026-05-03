@@ -29,6 +29,15 @@ class Deposit(models.Model):
     provider_reference = models.CharField(max_length=120, blank=True, default='')
     provider_payload = models.JSONField(blank=True, default=dict)
     verification_payload = models.JSONField(blank=True, default=dict)
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_deposits',
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True, default='')
     confirmations = models.IntegerField(default=0)
     target_confirmations = models.IntegerField(default=3)
     check_attempts = models.IntegerField(default=0)
@@ -59,25 +68,28 @@ class Deposit(models.Model):
             if self.status == 'completed':
                 credit_wallet(self.wallet, self.amount, 'main', 'deposit', {'deposit_id': self.id})
                 if not self.completed_at:
-                    Deposit.objects.filter(pk=self.pk).update(completed_at=timezone.now())
+                    self.completed_at = timezone.now()
+                    Deposit.objects.filter(pk=self.pk).update(completed_at=self.completed_at)
+                detail = f" Your review note: {self.review_note}" if self.review_note else ""
                 create_notification(
                     self.user,
                     "Deposit completed",
-                    f"Your {self.crypto.symbol} deposit of {self.amount} has been completed.",
+                    f"Your {self.crypto.symbol} deposit of {self.amount} has been approved and credited.{detail}",
                     level='success',
                 )
             elif self.status == 'rejected':
+                detail = f" Review note: {self.review_note}" if self.review_note else ""
                 create_notification(
                     self.user,
                     "Deposit rejected",
-                    "Your deposit could not be completed. Please contact support if this looks wrong.",
+                    f"Your deposit was rejected.{detail}",
                     level='warning',
                 )
             elif self.status in {'pending', 'confirming'}:
                 create_notification(
                     self.user,
                     "Deposit pending",
-                    "Your deposit is awaiting confirmations.",
+                    "Your deposit is awaiting manual review.",
                     level='info',
                 )
 

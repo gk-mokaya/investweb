@@ -15,6 +15,58 @@
   </div>
 
   <div class="sidebar-scroll">
+    {% if request.user.is_staff %}
+    <div class="nav-section">
+      <div class="nav-section-title">Staff Console</div>
+      <a class="nav-item {% if current == 'admin_dashboard' %}active{% endif %}" href="{% url 'admin_dashboard' %}">
+        <span class="nav-icon"><svg class="icon sm"><use href="#icon-activity"></use></svg></span>
+        <span>Dashboard</span>
+      </a>
+      <a class="nav-item {% if current == 'admin_user_list' %}active{% endif %}" href="{% url 'admin_user_list' %}">
+        <span class="nav-icon"><svg class="icon sm"><use href="#icon-user"></use></svg></span>
+        <span>User Management</span>
+      </a>
+      <a class="nav-item {% if current == 'admin_kyc_reviews' %}active{% endif %}" href="{% url 'admin_kyc_reviews' %}">
+        <span class="nav-icon"><svg class="icon sm"><use href="#icon-shield"></use></svg></span>
+        <span>Profile reviews</span>
+      </a>
+      <a class="nav-item {% if current == 'admin_pending_deposits' %}active{% endif %}" href="{% url 'admin_pending_deposits' %}">
+        <span class="nav-icon"><svg class="icon sm"><use href="#icon-plus"></use></svg></span>
+        <span>Deposits</span>
+      </a>
+      <a class="nav-item {% if current == 'admin_pending_withdrawals' %}active{% endif %}" href="{% url 'admin_pending_withdrawals' %}">
+        <span class="nav-icon"><svg class="icon sm"><use href="#icon-arrow-down"></use></svg></span>
+        <span>Withdrawals</span>
+      </a>
+      <a class="nav-item {% if current == 'admin_wallets' %}active{% endif %}" href="{% url 'admin_wallets' %}">
+        <span class="nav-icon"><svg class="icon sm"><use href="#icon-briefcase"></use></svg></span>
+        <span>Wallets</span>
+      </a>
+      <a class="nav-item {% if current == 'admin_plans' %}active{% endif %}" href="{% url 'admin_plans' %}">
+        <span class="nav-icon"><svg class="icon sm"><use href="#icon-briefcase"></use></svg></span>
+        <span>Plans</span>
+      </a>
+      <a class="nav-item {% if current == 'admin_site_settings_page' %}active{% endif %}" href="{% url 'admin_site_settings_page' %}">
+        <span class="nav-icon"><svg class="icon sm"><use href="#icon-settings"></use></svg></span>
+        <span>Settings</span>
+      </a>
+      <a class="nav-item {% if current == 'admin_audit_logs' %}active{% endif %}" href="{% url 'admin_audit_logs' %}">
+        <span class="nav-icon"><svg class="icon sm"><use href="#icon-shield"></use></svg></span>
+        <span>Audit log</span>
+      </a>
+      <a class="nav-item {% if current == 'staff_chat_inbox' %}active{% endif %}" href="{% url 'staff_chat_inbox' %}">
+        <span class="nav-icon"><svg class="icon sm"><use href="#icon-message-square"></use></svg></span>
+        <span>Support chat</span>
+      </a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-title">Operations</div>
+      <a class="nav-item {% if current == 'admin_risk_dashboard' %}active{% endif %}" href="{% url 'admin_risk_dashboard' %}">
+        <span class="nav-icon"><svg class="icon sm"><use href="#icon-alert"></use></svg></span>
+        <span>Risk review</span>
+      </a>
+    </div>
+    {% else %}
     <div class="nav-section">
       <div class="nav-section-title">Overview</div>
       <a class="nav-item {% if current == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">
@@ -24,19 +76,19 @@
     </div>
 
     <div class="nav-section">
-      <div class="nav-section-title">Investments</div>
+      <div class="nav-section-title">Investing</div>
       <a class="nav-item {% if current == 'plans' %}active{% endif %}" href="{% url 'plans' %}">
         <span class="nav-icon"><svg class="icon sm"><use href="#icon-layers"></use></svg></span>
         <span>Plans</span>
       </a>
       <a class="nav-item {% if current == 'my_investments' %}active{% endif %}" href="{% url 'my_investments' %}">
         <span class="nav-icon"><svg class="icon sm"><use href="#icon-briefcase"></use></svg></span>
-        <span>My Investments</span>
+        <span>Investments</span>
       </a>
     </div>
 
     <div class="nav-section">
-      <div class="nav-section-title">Funds</div>
+      <div class="nav-section-title">Wallet</div>
       <a class="nav-item {% if current == 'deposit_list' %}active{% endif %}" href="{% url 'deposit_list' %}">
         <span class="nav-icon"><svg class="icon sm"><use href="#icon-plus"></use></svg></span>
         <span>Deposits</span>
@@ -51,20 +103,7 @@
       <div class="nav-section-title">Account</div>
       <a class="nav-item {% if current == 'profile' %}active{% endif %}" href="{% url 'profile' %}">
         <span class="nav-icon"><svg class="icon sm"><use href="#icon-user"></use></svg></span>
-        <span>Profile & KYC</span>
-      </a>
-    </div>
-
-    {% if request.user.is_staff %}
-    <div class="nav-section">
-      <div class="nav-section-title">Admin</div>
-      <a class="nav-item {% if current == 'admin_dashboard' %}active{% endif %}" href="{% url 'admin_dashboard' %}">
-        <span class="nav-icon"><svg class="icon sm"><use href="#icon-activity"></use></svg></span>
-        <span>Admin Dashboard</span>
-      </a>
-      <a class="nav-item {% if current == 'admin_operations' %}active{% endif %}" href="{% url 'admin_operations' %}">
-        <span class="nav-icon"><svg class="icon sm"><use href="#icon-layers"></use></svg></span>
-        <span>Admin Operations</span>
+        <span>Profile</span>
       </a>
     </div>
     {% endif %}
@@ -73,7 +112,7 @@
   <div class="nav-section session-section sidebar-footer">
     <a class="nav-item" href="{% url 'logout' %}">
       <span class="nav-icon"><svg class="icon sm"><use href="#icon-log-out"></use></svg></span>
-      <span>Log out</span>
+      <span>Sign out</span>
     </a>
   </div>
 </aside>

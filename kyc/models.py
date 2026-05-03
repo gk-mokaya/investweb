@@ -46,6 +46,18 @@ class KYCProfile(models.Model):
         self.status = 'pending'
         self.submitted_at = timezone.now()
 
+    def age_years(self) -> int | None:
+        if not self.date_of_birth:
+            return None
+        today = timezone.now().date()
+        return today.year - self.date_of_birth.year - (
+            (today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day)
+        )
+
+    def is_underage(self, minimum_age: int = 16) -> bool:
+        age = self.age_years()
+        return age is not None and age < minimum_age
+
     def completion_percent(self) -> int:
         fields = [
             self.full_name,

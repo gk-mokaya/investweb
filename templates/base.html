@@ -10,7 +10,15 @@
   {% endif %}
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2-family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <script>
+    (function () {
+      var stored = localStorage.getItem('theme');
+      var prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      var theme = stored === 'light' || stored === 'dark' ? stored : (prefersLight ? 'light' : 'dark');
+      document.documentElement.dataset.theme = theme;
+    })();
+  </script>
   <link rel="stylesheet" href="{% static 'css/app.css' %}" />
   {% block extra_head %}{% endblock %}
 </head>
@@ -26,6 +34,11 @@
       </main>
     </div>
   </div>
+  <div class="sidebar-backdrop" data-sidebar-backdrop></div>
+  {% include "partials/page_loader.html" %}
+  {% if not request.user.is_staff %}
+    {% include "partials/chat_widget.html" %}
+  {% endif %}
   <div class="sweet-alert-backdrop" id="confirmBackdrop" aria-hidden="true">
     <div class="sweet-alert" id="confirmDialog" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmMessage">
       <div class="sweet-alert-icon">
@@ -33,7 +46,7 @@
       </div>
       <div class="sweet-alert-content">
         <div class="sweet-alert-title" id="confirmTitle">Confirm Action</div>
-        <div class="sweet-alert-message" id="confirmMessage">Are you sure-</div>
+        <div class="sweet-alert-message" id="confirmMessage">Are you sure?</div>
         <div class="confirm-progress" data-confirm-progress>
           <span data-confirm-progress-bar></span>
         </div>
@@ -45,7 +58,7 @@
     </div>
   </div>
   <script src="{% static 'js/app.js' %}" defer></script>
+  <script src="{% static 'js/chat.js' %}" defer></script>
   {% block extra_scripts %}{% endblock %}
 </body>
 </html>
-

@@ -47,6 +47,67 @@ class RegisterForm(UserCreationForm):
         return user
 
 
+class ProfileUpdateForm(forms.Form):
+    first_name = forms.CharField(required=False, max_length=150)
+    last_name = forms.CharField(required=False, max_length=150)
+    phone_number = forms.CharField(required=False, max_length=40)
+    country = forms.CharField(required=False, max_length=80)
+    address_line = forms.CharField(required=False, max_length=200)
+    city = forms.CharField(required=False, max_length=80)
+    postal_code = forms.CharField(required=False, max_length=20)
+    country_of_residence = forms.CharField(required=False, max_length=80)
+
+    def __init__(self, *args, user=None, profile=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.user = user
+        self.profile = profile
+        self.fields['first_name'].widget.attrs.update({'placeholder': 'First name'})
+        self.fields['last_name'].widget.attrs.update({'placeholder': 'Last name'})
+        self.fields['phone_number'].widget.attrs.update({'placeholder': 'Phone number'})
+        self.fields['country'].widget.attrs.update({'placeholder': 'Country'})
+        self.fields['address_line'].widget.attrs.update({'placeholder': 'Street address'})
+        self.fields['city'].widget.attrs.update({'placeholder': 'City'})
+        self.fields['postal_code'].widget.attrs.update({'placeholder': 'Postal code'})
+        self.fields['country_of_residence'].widget.attrs.update({'placeholder': 'Country of residence'})
+        if user:
+            self.initial.setdefault('first_name', user.first_name)
+            self.initial.setdefault('last_name', user.last_name)
+        if profile:
+            self.initial.setdefault('phone_number', profile.phone_number)
+            self.initial.setdefault('country', profile.country)
+            self.initial.setdefault('address_line', profile.address_line)
+            self.initial.setdefault('city', profile.city)
+            self.initial.setdefault('postal_code', profile.postal_code)
+            self.initial.setdefault('country_of_residence', profile.country_of_residence)
+
+    def save(self):
+        if self.user is None or self.profile is None:
+            raise ValueError("ProfileUpdateForm requires both user and profile.")
+
+        self.user.first_name = self.cleaned_data.get('first_name', '')
+        self.user.last_name = self.cleaned_data.get('last_name', '')
+        self.user.save(update_fields=['first_name', 'last_name'])
+
+        self.profile.phone_number = self.cleaned_data.get('phone_number', '')
+        self.profile.country = self.cleaned_data.get('country', '')
+        self.profile.address_line = self.cleaned_data.get('address_line', '')
+        self.profile.city = self.cleaned_data.get('city', '')
+        self.profile.postal_code = self.cleaned_data.get('postal_code', '')
+        self.profile.country_of_residence = self.cleaned_data.get('country_of_residence', '')
+        full_name = f"{self.user.first_name} {self.user.last_name}".strip()
+        self.profile.full_name = full_name
+        self.profile.save(update_fields=[
+            'phone_number',
+            'country',
+            'address_line',
+            'city',
+            'postal_code',
+            'country_of_residence',
+            'full_name',
+        ])
+        return self.user, self.profile
+
+
 class EmailAuthenticationForm(AuthenticationForm):
     username = forms.EmailField(label="Email address", widget=forms.EmailInput(attrs={'autofocus': True}))
 
@@ -114,4 +175,3 @@ class BrandedSetPasswordForm(SetPasswordForm):
         strip=False,
         widget=forms.PasswordInput(attrs={'autocomplete': 'new-password'}),
     )
-

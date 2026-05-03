@@ -55,17 +55,21 @@ class WithdrawalCreateView(LoginRequiredMixin, CreateView):
             form.add_error(None, "KYC verification is required before withdrawals.")
             return self.form_invalid(form)
 
-        allowed, reason = can_withdraw(self.request.user, amount)
-        if not allowed:
-            form.add_error(None, reason)
-            return self.form_invalid(form)
-
         wallet = form.cleaned_data.get('wallet')
         if wallet and wallet.user_id != self.request.user.id:
             form.add_error('wallet', "Invalid wallet selection.")
             return self.form_invalid(form)
-        if amount > wallet.profit_balance:
-            form.add_error('amount', "Insufficient profit balance.")
+
+        allowed, reason = can_withdraw(self.request.user, amount, wallet=wallet)
+        if not allowed:
+            form.add_error(None, reason)
+            return self.form_invalid(form)
+
+        if amount > wallet.withdrawable_balance:
+            if not wallet.has_non_bonus_credit:
+                form.add_error('amount', "You cannot withdraw welcome bonus only. Invest first in order to be able to withdraw.")
+            else:
+                form.add_error('amount', "Insufficient wallet balance.")
             return self.form_invalid(form)
 
         withdrawal = form.save(commit=False)

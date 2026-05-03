@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}Risk Dashboard | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
+{% block title %}Risk Review | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
 
 {% block content %}
 <div class="section-card">
   <div class="section-header">
     <div>
-      <div class="section-title">Risk Dashboard</div>
-      <div class="card-muted">Users requiring additional review.</div>
+      <div class="section-title">Risk review</div>
+      <div class="card-muted">Accounts requiring additional review.</div>
     </div>
   </div>
   <div class="table-wrapper">
@@ -33,7 +33,7 @@
         {% empty %}
           <tr>
             <td colspan="2">
-              <div class="empty-state">No risky users detected.</div>
+              <div class="empty-state">No accounts currently flagged.</div>
             </td>
           </tr>
         {% endfor %}

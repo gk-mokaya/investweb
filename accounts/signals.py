@@ -19,22 +19,19 @@ def create_profile_wallet_bonus(sender, instance: User, created: bool, **kwargs)
     UserProfile.objects.create(user=instance)
 
     from wallets.services import credit_wallet, create_primary_wallet
-    from investments.models import BonusTracker
 
     wallet = create_primary_wallet(instance, name='Primary Wallet')
 
     bonus_amount = get_setting_decimal('WELCOME_BONUS', default='50')
-    multiplier = get_setting_decimal('BONUS_PROFIT_MULTIPLIER', default='3')
-
-    required_profit = bonus_amount * multiplier
-    BonusTracker.objects.create(
-        user=instance,
-        bonus_amount=bonus_amount,
-        required_profit=required_profit,
-    )
-
     if bonus_amount > 0:
         credit_wallet(wallet, bonus_amount, 'main', 'bonus', {'reason': 'welcome_bonus'})
+        currency = str(get_setting('CURRENCY', default='USD') or 'USD')
+        create_notification(
+            instance,
+            "Welcome bonus credited",
+            f"You have received {bonus_amount} {currency} welcome bonus in your primary wallet.",
+            level='success',
+        )
 
     KYCProfile.objects.get_or_create(user=instance)
 
@@ -46,16 +43,6 @@ def log_login(sender, request, user, **kwargs):
     last_log = LoginLog.objects.filter(user=user).order_by('-created_at').first()
     LoginLog.objects.create(user=user, ip_address=ip, user_agent=user_agent)
     log_action(user, 'login', 'user', user.id, {'ip': ip})
-    if not last_log:
-        bonus_amount = get_setting_decimal('WELCOME_BONUS', default='50')
-        if bonus_amount > 0:
-            currency = str(get_setting('CURRENCY', default='USD') or 'USD')
-            create_notification(
-                user,
-                "Welcome bonus credited",
-                f"You have received {bonus_amount} {currency} welcome bonus in your primary wallet.",
-                level='success',
-            )
     if last_log and last_log.ip_address and last_log.ip_address != ip:
         create_notification(
             user,

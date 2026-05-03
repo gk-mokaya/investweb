@@ -7,8 +7,8 @@
   <div class="card">
     <div class="card-header">
       <div>
-        <div class="card-title">Total Requests</div>
-        <div class="card-muted">Withdrawal count</div>
+        <div class="card-title">Withdrawal count</div>
+        <div class="card-muted">All submitted withdrawal requests</div>
       </div>
       <span class="badge info">{{ withdrawals|length }}</span>
     </div>
@@ -17,36 +17,36 @@
   <div class="card">
     <div class="card-header">
       <div>
-        <div class="card-title">Profit Balance</div>
-        <div class="card-muted">Available for withdrawal</div>
+        <div class="card-title">Wallet balance</div>
+        <div class="card-muted">Total wallet balance</div>
       </div>
       <span class="badge info">Wallet</span>
     </div>
-    <div class="metric-value">{{ WALLET_SUMMARY.profit_balance|default:'0' }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</div>
+    <div class="metric-value">{{ WALLET_SUMMARY.total_balance|default:'0' }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</div>
   </div>
 </div>
 
 <div class="section-card">
   <div class="section-header">
     <div>
-      <div class="section-title">Withdrawal Requests</div>
+      <div class="section-title">Withdrawal history</div>
       <div class="card-muted">Track outgoing withdrawals.</div>
       {% if payment_config %}
         <div class="card-muted">Mode: {{ payment_config.get_mode_display }}</div>
       {% endif %}
     </div>
     <div class="section-actions">
-      <button class="btn primary" data-modal-open="#withdrawalModal" type="button" {% if payment_config and not payment_config.enable_withdrawals or not kyc_verified %}disabled{% endif %}>New Withdrawal</button>
+      <button class="btn primary" data-modal-open="#withdrawalModal" type="button" {% if payment_config and not payment_config.enable_withdrawals or not kyc_verified %}disabled{% endif %}>New withdrawal</button>
     </div>
   </div>
   {% if payment_config and not payment_config.enable_withdrawals %}
     <div class="alert warning">
-      <div>Withdrawals are currently disabled. Please check back later.</div>
+      <div>Withdrawals are temporarily unavailable. Please check back later.</div>
     </div>
   {% endif %}
   {% if not kyc_verified %}
     <div class="alert warning">
-      <div>Complete KYC verification to unlock withdrawals.</div>
+      <div>Complete verification to unlock withdrawals.</div>
     </div>
   {% endif %}
 
@@ -100,15 +100,15 @@
 </div>
 
 {% for withdrawal in withdrawals %}
-  <div class="modal" id="withdrawalView{{ withdrawal.id }}">
+  <div class="modal modal-mobile-full" id="withdrawalView{{ withdrawal.id }}">
     <div class="modal-backdrop" data-modal-close></div>
     <div class="modal-dialog">
       <div class="modal-header">
-        <div class="modal-title">Withdrawal Details</div>
+        <div class="modal-title">Withdrawal details</div>
         <button class="modal-close" type="button" data-modal-close><svg class="icon sm"><use href="#icon-x"></use></svg></button>
       </div>
     <div class="modal-body">
-      <div class="modal-subtitle">Withdrawal Details</div>
+      <div class="modal-subtitle">Withdrawal summary</div>
       <div class="modal-section-grid">
         <div class="info-chip">
           <div class="info-chip-label">Wallet</div>
@@ -133,15 +133,15 @@
           <div class="info-chip-value">{{ withdrawal.get_status_display }}</div>
         </div>
         <div class="info-chip">
-          <div class="info-chip-label">Wallet Address</div>
+          <div class="info-chip-label">Wallet address</div>
           <div class="info-chip-value">{{ withdrawal.wallet_address }}</div>
         </div>
         <div class="info-chip">
-          <div class="info-chip-label">Destination Network</div>
+          <div class="info-chip-label">Destination network</div>
           <div class="info-chip-value">{{ withdrawal.destination_network|default:'-' }}</div>
         </div>
         <div class="info-chip">
-          <div class="info-chip-label">Memo Tag</div>
+          <div class="info-chip-label">Memo tag</div>
           <div class="info-chip-value">{{ withdrawal.memo_tag|default:'-' }}</div>
         </div>
       </div>
@@ -153,11 +153,11 @@
   </div>
 {% endfor %}
 
-<div class="modal" id="withdrawalModal" data-open="{% if open_withdrawal_modal %}true{% endif %}">
+<div class="modal modal-mobile-full" id="withdrawalModal" data-open="{% if open_withdrawal_modal %}true{% endif %}">
   <div class="modal-backdrop" data-modal-close></div>
   <div class="modal-dialog">
     <div class="modal-header">
-      <div class="modal-title">New Withdrawal</div>
+      <div class="modal-title">New withdrawal</div>
       <button class="modal-close" type="button" data-modal-close><svg class="icon sm"><use href="#icon-x"></use></svg></button>
     </div>
     <form method="post" action="{% url 'withdrawal_create' %}">
@@ -165,15 +165,15 @@
       <div class="modal-body">
         {% if not kyc_verified %}
           <div class="alert warning">
-            <div>KYC verification is required before you can withdraw.</div>
+            <div>Verification is required before you can request a withdrawal.</div>
           </div>
         {% endif %}
         {% if payment_config and payment_config.enable_withdrawals %}
           <div class="alert info" data-method-only="manual">
-            <div>Manual withdrawals are processed by admins after approval.</div>
+            <div>Manual withdrawals are processed by the admin team after approval.</div>
           </div>
           <div class="alert info" data-method-only="automated">
-            <div>Automated withdrawals are sent after admin approval.</div>
+            <div>Automated withdrawals are released after approval.</div>
           </div>
         {% endif %}
         {% if create_form.non_field_errors %}
@@ -186,8 +186,20 @@
         <div class="form-grid">
           {% include "partials/form_field.html" with field=create_form.wallet %}
           <div class="form-group">
-            <label>Wallet Balance</label>
-            <input type="text" id="withdrawalWalletBalance" readonly />
+            <label>Wallet balance</label>
+            <div class="wallet-info-panel" id="withdrawalWalletBalance">
+              <div class="wallet-info-row">
+                <span class="wallet-info-label">Selected wallet</span>
+                <span class="wallet-info-value" data-wallet-selected-name>Choose a wallet</span>
+              </div>
+              <div class="wallet-info-row">
+                <span class="wallet-info-label">Total balance</span>
+                <span class="wallet-info-value" data-wallet-balance-help>Select a wallet to see balance.</span>
+              </div>
+              <div class="wallet-info-foot">
+                <span class="badge info" data-wallet-balance-status style="display:none;"></span>
+              </div>
+            </div>
           </div>
           {% include "partials/form_field.html" with field=create_form.crypto %}
           {% include "partials/form_field.html" with field=create_form.method %}
@@ -199,7 +211,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn ghost" type="button" data-modal-close>Cancel</button>
-        <button class="btn primary" type="submit">Submit Withdrawal</button>
+        <button class="btn primary" type="submit">Submit withdrawal</button>
       </div>
     </form>
   </div>

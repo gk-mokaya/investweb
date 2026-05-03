@@ -1,7 +1,11 @@
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any
+import logging
 
 from settingsconfig.models import SystemSetting
+
+
+logger = logging.getLogger(__name__)
 
 
 DEFAULT_SETTINGS: dict[str, Any] = {
@@ -13,7 +17,6 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     'SUPPORT_PHONE': '',
     'SUPPORT_ADDRESS': '',
     'WELCOME_BONUS': '50',
-    'BONUS_PROFIT_MULTIPLIER': '3',
     'MIN_WITHDRAWAL_AMOUNT': '10',
     'CURRENCY': 'USD',
     'CRYPTO_PROVIDER': 'manual',
@@ -40,4 +43,16 @@ def get_setting(key: str, default: Any | None = None) -> Any:
 
 def get_setting_decimal(key: str, default: str = '0') -> Decimal:
     value = get_setting(key, default=default)
-    return Decimal(str(value))
+    try:
+        normalized = str(value).strip()
+        if normalized == '':
+            normalized = default
+        return Decimal(normalized)
+    except (InvalidOperation, TypeError, ValueError):
+        logger.warning(
+            "Invalid decimal setting for %s: %r. Falling back to default %r.",
+            key,
+            value,
+            default,
+        )
+        return Decimal(str(default))

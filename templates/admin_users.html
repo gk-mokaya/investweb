@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}Account Directory | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
+
+{% block content %}
+<div class="section-card">
+  <div class="section-header">
+    <div>
+      <div class="section-title">Account directory</div>
+      <div class="card-muted">Search users, inspect access, and move between active, inactive, and staff roles.</div>
+    </div>
+    <div class="section-actions">
+      <a class="btn primary" href="{% url 'admin_user_create' %}">Add user</a>
+    </div>
+  </div>
+
+  <div class="queue-summary-grid platform-summary-grid">
+    <div class="queue-summary-card no-link">
+      <div class="queue-summary-top">
+        <span class="queue-summary-label">Total accounts</span>
+        <span class="badge info">{{ total_users }}</span>
+      </div>
+      <div class="queue-summary-note">All registered users in the system.</div>
+    </div>
+    <div class="queue-summary-card no-link">
+      <div class="queue-summary-top">
+        <span class="queue-summary-label">Staff users</span>
+        <span class="badge info">{{ staff_users }}</span>
+      </div>
+      <div class="queue-summary-note">Accounts with elevated staff access.</div>
+    </div>
+    <div class="queue-summary-card no-link">
+      <div class="queue-summary-top">
+        <span class="queue-summary-label">Inactive users</span>
+        <span class="badge warning">{{ inactive_users }}</span>
+      </div>
+      <div class="queue-summary-note">Users temporarily disabled from sign-in.</div>
+    </div>
+  </div>
+
+  <div class="table-wrapper">
+    <table class="table">
+      <thead>
+        <tr>
+          <th colspan="6">
+            <form class="filters-bar filters-inline" method="get" data-auto-submit="true">
+              <input class="filters-search" type="text" name="q" value="{{ q }}" placeholder="Search by username, email, or full name" />
+              <select class="filter-chip" name="status">
+                <option value="">All users</option>
+                <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
+                <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Inactive</option>
+                <option value="staff" {% if status == 'staff' %}selected{% endif %}>Staff</option>
+              </select>
+              <div class="filters-actions">
+                <a class="btn ghost" href="{% url 'admin_user_list' %}">Clear</a>
+              </div>
+            </form>
+          </th>
+        </tr>
+        <tr>
+          <th>User</th>
+          <th>Email</th>
+          <th>Role</th>
+          <th>Status</th>
+          <th>Joined</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user in users %}
+          <tr>
+            <td data-label="User">
+              <div class="list-stack" style="gap:4px;">
+                <strong>{{ user.username }}</strong>
+                <span class="card-muted">{{ user.first_name|default:'' }} {{ user.last_name|default:'' }}</span>
+              </div>
+            </td>
+            <td data-label="Email">{{ user.email|default:'-' }}</td>
+            <td data-label="Role">
+              {% if user.is_superuser %}
+                <span class="badge info">{% if user.is_superuser %}Admin{% else %}Staff{% endif %}</span>
+              {% elif user.is_staff %}
+                <span class="badge success">Staff</span>
+              {% else %}
+                <span class="badge">Member</span>
+              {% endif %}
+            </td>
+            <td data-label="Status">
+              {% if user.is_active %}
+                <span class="badge success">Active</span>
+              {% else %}
+                <span class="badge danger">Inactive</span>
+              {% endif %}
+            </td>
+            <td data-label="Joined">{{ user.date_joined|date:"M d, Y" }}</td>
+            <td data-label="Actions">
+              <div class="table-actions">
+                <a class="btn small ghost" href="{% url 'admin_user_detail' user.id %}">Edit user</a>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="6">
+              <div class="empty-state">No users found.</div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% include "partials/pagination.html" %}
+</div>
+{% endblock %}

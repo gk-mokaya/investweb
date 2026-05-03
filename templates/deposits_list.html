@@ -7,8 +7,8 @@
   <div class="card">
     <div class="card-header">
       <div>
-        <div class="card-title">Total Deposits</div>
-        <div class="card-muted">History count</div>
+        <div class="card-title">Deposit count</div>
+        <div class="card-muted">All submitted deposits</div>
       </div>
       <span class="badge info">{{ deposits|length }}</span>
     </div>
@@ -17,8 +17,8 @@
   <div class="card">
     <div class="card-header">
       <div>
-        <div class="card-title">Available Balance</div>
-        <div class="card-muted">Ready to invest</div>
+        <div class="card-title">Wallet balance</div>
+        <div class="card-muted">Ready to deploy</div>
       </div>
       <span class="badge info">Wallet</span>
     </div>
@@ -30,28 +30,26 @@
   <div class="section-header">
     <div>
       <div class="section-title deposits-title-line">
-        <span>Deposit Requests</span>
-        <span class="section-inline-muted">Your deposit history and status</span>
+        <span>Deposit history</span>
+        <span class="section-inline-muted">Every request and its current status</span>
       </div>
     </div>
     <div class="section-actions">
-      <button class="btn primary" data-modal-open="#depositModal" type="button" {% if payment_config and not payment_config.enable_deposits %}disabled{% endif %}>New Deposit</button>
+      <button class="btn primary" data-modal-open="#depositModal" type="button" {% if payment_config and not payment_config.enable_deposits %}disabled{% endif %}>New deposit</button>
     </div>
   </div>
   {% if payment_config and not payment_config.enable_deposits %}
     <div class="alert warning">
-      <div>Deposits are currently disabled. Please check back later.</div>
+      <div>Deposits are temporarily unavailable. Please check back later.</div>
     </div>
   {% endif %}
-  {% if latest_deposit and latest_deposit.pay_address %}
+  {% if latest_deposit and not latest_deposit.pay_address %}
     <div class="alert info">
       <div>
-        Send your {{ latest_deposit.crypto }} ({{ latest_deposit.network }}) deposit to:
-        <strong id="latestDepositAddress">{{ latest_deposit.pay_address }}</strong>
+        Your {{ latest_deposit.crypto }} deposit of {{ latest_deposit.amount }} has been submitted and is awaiting review.
       </div>
       <div class="section-actions">
-        <button class="btn ghost small" type="button" data-copy-target="#latestDepositAddress">Copy</button>
-        <button class="btn primary small" type="button" data-modal-open="#depositView{{ latest_deposit.id }}">View</button>
+        <button class="btn primary small" type="button" data-modal-open="#depositView{{ latest_deposit.id }}">View details</button>
       </div>
     </div>
   {% endif %}
@@ -108,15 +106,15 @@
 </div>
 
 {% for deposit in deposits %}
-  <div class="modal" id="depositView{{ deposit.id }}">
+  <div class="modal modal-mobile-full" id="depositView{{ deposit.id }}">
     <div class="modal-backdrop" data-modal-close></div>
     <div class="modal-dialog">
       <div class="modal-header">
-        <div class="modal-title">Deposit Details</div>
+        <div class="modal-title">Deposit details</div>
         <button class="modal-close" type="button" data-modal-close><svg class="icon sm"><use href="#icon-x"></use></svg></button>
       </div>
-    <div class="modal-body">
-      <div class="modal-subtitle">Deposit Details</div>
+      <div class="modal-body">
+      <div class="modal-subtitle">Deposit summary</div>
       <div class="modal-section-grid">
         <div class="info-chip">
           <div class="info-chip-label">Wallet</div>
@@ -141,7 +139,7 @@
           <div class="info-chip-value">{{ deposit.get_status_display }}</div>
         </div>
         <div class="info-chip">
-          <div class="info-chip-label">Payment Address</div>
+          <div class="info-chip-label">Payment address</div>
           <div class="info-chip-value">
             <span id="depositPay{{ deposit.id }}">{{ deposit.pay_address|default:'-' }}</span>
             {% if deposit.pay_address %}
@@ -150,12 +148,24 @@
           </div>
         </div>
         <div class="info-chip">
-          <div class="info-chip-label">Transaction Hash</div>
+          <div class="info-chip-label">Transaction hash</div>
           <div class="info-chip-value">{{ deposit.transaction_hash|default:'-' }}</div>
         </div>
         <div class="info-chip">
-          <div class="info-chip-label">Sender Address</div>
+          <div class="info-chip-label">Sender address</div>
           <div class="info-chip-value">{{ deposit.sender_address|default:'-' }}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Reviewed by</div>
+          <div class="info-chip-value">{% if deposit.reviewed_by %}{{ deposit.reviewed_by.username }}{% else %}-{% endif %}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Reviewed at</div>
+          <div class="info-chip-value">{% if deposit.reviewed_at %}{{ deposit.reviewed_at|date:"M d, Y H:i" }}{% else %}-{% endif %}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Review note</div>
+          <div class="info-chip-value">{{ deposit.review_note|default:'-' }}</div>
         </div>
       </div>
     </div>
@@ -166,11 +176,11 @@
   </div>
 {% endfor %}
 
-<div class="modal" id="depositModal" data-open="{% if open_deposit_modal %}true{% endif %}">
+<div class="modal modal-mobile-full deposit-modal" id="depositModal" data-open="{% if open_deposit_modal %}true{% endif %}">
   <div class="modal-backdrop" data-modal-close></div>
-  <div class="modal-dialog">
+  <div class="modal-dialog deposit-modal-dialog">
     <div class="modal-header">
-      <div class="modal-title">New Deposit</div>
+      <div class="modal-title">New deposit</div>
       <button class="modal-close" type="button" data-modal-close><svg class="icon sm"><use href="#icon-x"></use></svg></button>
     </div>
     <form method="post" action="{% url 'deposit_create' %}">
@@ -178,9 +188,9 @@
       <div class="modal-body">
         {% if payment_config and payment_config.enable_deposits %}
           <div class="deposit-guide" data-method-only="manual">
-            <div class="deposit-guide-title">Follow these steps to submit a manual deposit correctly.</div>
+            <div class="deposit-guide-title">Follow these steps to complete a manual USDT deposit.</div>
             <div class="deposit-guide-wallet">
-              <div class="deposit-guide-wallet-label">Platform Wallet Address</div>
+              <div class="deposit-guide-wallet-label">TRC20 deposit address</div>
               {% if SYSTEM_SETTINGS.MANUAL_DEPOSIT_WALLET_ADDRESS %}
                 <div class="deposit-guide-wallet-row">
                   <div
@@ -200,14 +210,13 @@
               {% endif %}
             </div>
             <ol class="deposit-guide-steps">
-              <li>Send the exact amount to the platform wallet address above using the selected crypto/network.</li>
-              <li>Fill this form with your transaction hash, sender wallet address, amount, and the wallet to credit.</li>
-              <li>Submit your request. Our team will verify and approve the transfer manually.</li>
-              <li>After approval, your wallet balance is updated within 2 to 3 hours.</li>
+              <li>Go to <strong>Wallet &gt; Spot/Funding &gt; Withdraw &gt; USDT</strong>.</li>
+              <li>Select <strong>Send via Crypto Network</strong>.</li>
+              <li>Paste the copied <strong>TRC20 address</strong> into the address field.</li>
+              <li>Select <strong>TRON (TRC20)</strong> as the network.</li>
+              <li>Enter the exact amount and confirm the transfer.</li>
+              <li>After sending, submit the transaction hash and sender wallet address so our team can review the request.</li>
             </ol>
-          </div>
-          <div class="alert info" data-method-only="automated">
-            <div>Automated deposit: submit to generate a pay address, then open the deposit details to copy it.</div>
           </div>
         {% endif %}
         {% if create_form.non_field_errors %}
@@ -220,11 +229,10 @@
         <div class="form-grid">
           {% include "partials/form_field.html" with field=create_form.wallet %}
           <div class="form-group">
-            <label>Wallet Balance</label>
+            <label>Wallet balance</label>
             <input type="text" id="depositWalletBalance" readonly />
           </div>
           {% include "partials/form_field.html" with field=create_form.crypto %}
-          {% include "partials/form_field.html" with field=create_form.method %}
           {% include "partials/form_field.html" with field=create_form.amount %}
           {% include "partials/form_field.html" with field=create_form.sender_address %}
           {% include "partials/form_field.html" with field=create_form.transaction_hash %}
@@ -232,7 +240,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn ghost" type="button" data-modal-close>Cancel</button>
-        <button class="btn primary" type="submit">Submit Deposit</button>
+        <button class="btn primary" type="submit">Submit deposit</button>
       </div>
     </form>
   </div>

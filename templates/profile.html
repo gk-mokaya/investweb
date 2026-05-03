@@ -3,73 +3,63 @@
 {% block title %}Profile | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
 
 {% block content %}
-<div class="profile-clean">
-  <div class="section-card profile-clean-hero">
-    <div class="profile-clean-user">
+<div class="profile-shell profile-shell-compact">
+  <section class="profile-hero">
+    <div class="profile-hero-main">
       <div class="profile-avatar">{{ request.user.username|default:'U'|slice:':2'|upper }}</div>
-      <div>
+      <div class="profile-hero-copy">
         <div class="profile-name">
-          {% if kyc_profile.full_name %}{{ kyc_profile.full_name }}{% else %}{{ request.user.username }}{% endif %}
+          {% if kyc_profile.full_name %}{{ kyc_profile.full_name }}{% else %}{{ request.user.get_full_name|default:request.user.username }}{% endif %}
         </div>
-        <div class="profile-email">{{ request.user.email|default:'No email' }}</div>
+        <div class="profile-email">{{ request.user.email|default:'No email on file' }}</div>
         <div class="profile-meta">
           <span class="chip">Member since {{ request.user.date_joined|date:"M d, Y" }}</span>
-          <span class="chip">Last login {{ request.user.last_login|date:"M d, Y H:i"|default:"-" }}</span>
+          <span class="chip">Wallets {{ wallets|length }}</span>
+          <span class="chip">{{ kyc_profile.get_status_display }}</span>
         </div>
       </div>
     </div>
-    <div class="section-actions">
-      {% if kyc_profile.status == 'verified' %}
-        <span class="badge success">KYC Verified</span>
-      {% elif kyc_profile.status == 'not_submitted' %}
-        <button class="btn primary" data-modal-open="#kycModal" type="button">Submit KYC</button>
-      {% else %}
-        <button class="btn primary" data-modal-open="#kycModal" type="button">Update KYC</button>
-      {% endif %}
-    </div>
-  </div>
-
-  {% if kyc_profile.status == 'not_submitted' %}
-    <div class="section-card profile-kyc-callout">
-      <div class="profile-kyc-head">
-        <div class="section-title">KYC Not Submitted</div>
-        <div class="section-actions">
-          <button class="btn primary" data-modal-open="#kycModal" type="button">Submit KYC Now</button>
+    <div class="profile-hero-panel">
+      <div class="profile-hero-panel-top">
+        <div>
+          <div class="card-muted">Account snapshot</div>
+          <div class="card-title">Current status and quick actions</div>
+        </div>
+        <span class="badge {% if kyc_profile.status == 'verified' %}success{% elif kyc_profile.status == 'rejected' %}danger{% else %}warning{% endif %}">
+          {{ kyc_profile.get_status_display }}
+        </span>
+      </div>
+      <div class="profile-hero-panel-grid">
+        <div class="profile-hero-panel-stat">
+          <span>Member since</span>
+          <strong>{{ request.user.date_joined|date:"M d, Y" }}</strong>
+        </div>
+        <div class="profile-hero-panel-stat">
+          <span>Wallets</span>
+          <strong>{{ wallets|length }}</strong>
+        </div>
+        <div class="profile-hero-panel-stat">
+          <span>Verified</span>
+          <strong>{% if kyc_profile.status == 'verified' %}Yes{% else %}Pending{% endif %}</strong>
         </div>
       </div>
-      <div class="section-muted">
-        Your account verification is pending because KYC has not been submitted. Submit KYC to unlock withdrawals,
-        access full wallet operations, and continue using all platform features without restrictions.
+      <div class="profile-hero-actions">
+        <button class="btn primary" data-modal-open="#profileModal" type="button">Update profile</button>
+        {% if kyc_profile.status == 'verified' %}
+          <span class="badge success">Verified</span>
+        {% else %}
+          <button class="btn ghost" data-modal-open="#kycModal" type="button">Update KYC</button>
+        {% endif %}
+        <a class="btn ghost" href="{% url 'dashboard' %}">Back to dashboard</a>
       </div>
     </div>
-  {% endif %}
+  </section>
 
-  <div class="card-grid profile-clean-stats">
-    <div class="card">
-      <div class="card-title">KYC Status</div>
-      <div class="metric-value">{{ kyc_profile.get_status_display }}</div>
-      <div class="card-muted">Completion: {{ kyc_profile.completion_percent }}%</div>
-      <div class="progress"><span style="width: {{ kyc_profile.completion_percent }}%"></span></div>
-      <div class="card-muted" style="margin-top: 8px;">Review Note</div>
-      <div>{{ kyc_profile.review_note|default:"No review note yet." }}</div>
-    </div>
-  </div>
-
-  <div class="section-card">
+  <section class="section-card profile-panel profile-wallet-panel">
     <div class="section-header">
       <div>
-        <div class="section-title">Wallets</div>
-        <div class="section-muted">Compact wallet overview and balances.</div>
-      </div>
-      <div class="section-actions">
-        <button class="btn ghost" data-modal-open="#walletTransferModal" type="button">
-          <svg class="icon sm"><use href="#icon-activity"></use></svg>
-          Transfer
-        </button>
-        <button class="btn primary" data-modal-open="#walletCreateModal" type="button">
-          <svg class="icon sm"><use href="#icon-plus"></use></svg>
-          New Wallet
-        </button>
+        <div class="section-title">Wallet overview</div>
+          <div class="card-muted">Read-only balance snapshot for your account.</div>
       </div>
     </div>
     <div class="table-wrapper">
@@ -78,7 +68,7 @@
           <tr>
             <th>Wallet</th>
             <th>Type</th>
-            <th>Balance</th>
+            <th>Total balance</th>
             <th>Status</th>
           </tr>
         </thead>
@@ -90,7 +80,7 @@
                 {% if wallet.wallet_type == 'primary' %}<span class="badge success">Primary</span>{% endif %}
               </td>
               <td data-label="Type">{{ wallet.get_wallet_type_display }}</td>
-              <td data-label="Balance">{{ wallet.total_balance }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</td>
+              <td data-label="Total balance">{{ wallet.total_balance }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</td>
               <td data-label="Status">
                 {% if wallet.is_active %}
                   <span class="badge success">Active</span>
@@ -109,6 +99,67 @@
         </tbody>
       </table>
     </div>
+  </section>
+
+  <section class="section-card profile-panel profile-info-panel">
+    <div class="section-header">
+      <div>
+        <div class="section-title">Profile details</div>
+        <div class="card-muted">Quick identity information at a glance.</div>
+      </div>
+    </div>
+    <div class="profile-overview-grid">
+      <div class="profile-mini-card">
+        <span>Legal name</span>
+        <strong>{% if kyc_profile.full_name %}{{ kyc_profile.full_name }}{% else %}{{ request.user.get_full_name|default:request.user.username }}{% endif %}</strong>
+        <p>Use the update modal to edit your personal details.</p>
+      </div>
+      <div class="profile-mini-card">
+        <span>Email address</span>
+        <strong>{{ request.user.email|default:'No email set' }}</strong>
+        <p>Email remains locked as the account identifier.</p>
+      </div>
+      <div class="profile-mini-card">
+        <span>Phone number</span>
+        <strong>{{ user_profile.phone_number|default:'Not set' }}</strong>
+        <p>Useful for verification and support.</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="modal" id="profileModal" data-open="{% if open_profile_modal %}true{% endif %}">
+  <div class="modal-backdrop" data-modal-close></div>
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <div class="modal-title">Update Profile</div>
+      <button class="modal-close" type="button" data-modal-close><svg class="icon sm"><use href="#icon-x"></use></svg></button>
+    </div>
+    <form method="post" class="profile-form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="profile_update" />
+      <div class="modal-body">
+        <div class="form-grid">
+          {% include "partials/form_field.html" with field=profile_form.first_name %}
+          {% include "partials/form_field.html" with field=profile_form.last_name %}
+          {% include "partials/form_field.html" with field=profile_form.phone_number %}
+          {% include "partials/form_field.html" with field=profile_form.country %}
+          {% include "partials/form_field.html" with field=profile_form.address_line %}
+          {% include "partials/form_field.html" with field=profile_form.city %}
+          {% include "partials/form_field.html" with field=profile_form.postal_code %}
+          {% include "partials/form_field.html" with field=profile_form.country_of_residence %}
+        </div>
+        <div class="profile-note">
+          <span>Email address</span>
+          <strong>{{ request.user.email|default:'No email set' }}</strong>
+          <p>Email is locked as the single source of truth for account identity.</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn ghost" type="button" data-modal-close>Cancel</button>
+        <button class="btn primary" type="submit">Save profile</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -134,15 +185,15 @@
         <div class="stepper">
           <div class="step {% if kyc_step == '1' %}active{% elif kyc_step != '1' %}done{% endif %}">
             <span class="step-index">1</span>
-            <span>Profile Info</span>
+            <span>Profile details</span>
           </div>
           <div class="step {% if kyc_step == '2' %}active{% elif kyc_step == '3' %}done{% endif %}">
             <span class="step-index">2</span>
-            <span>Address Info</span>
+            <span>Address details</span>
           </div>
           <div class="step {% if kyc_step == '3' %}active{% endif %}">
             <span class="step-index">3</span>
-            <span>Upload Docs</span>
+            <span>Upload documents</span>
           </div>
         </div>
 
@@ -249,64 +300,4 @@
     </form>
   </div>
 </div>
-
-  <div class="modal" id="walletCreateModal" data-open="{% if open_wallet_create_modal %}true{% endif %}">
-  <div class="modal-backdrop" data-modal-close></div>
-  <div class="modal-dialog">
-    <div class="modal-header">
-      <div class="modal-title">Create Wallet</div>
-      <button class="modal-close" type="button" data-modal-close><svg class="icon sm"><use href="#icon-x"></use></svg></button>
-    </div>
-    <form method="post">
-      {% csrf_token %}
-      <input type="hidden" name="action" value="wallet_create" />
-      <div class="modal-body">
-        <div class="card-muted">Primary wallets are created automatically. Choose Trading or Savings.</div>
-        <div class="form-grid">
-          {% include "partials/form_field.html" with field=wallet_create_form.name %}
-          {% include "partials/form_field.html" with field=wallet_create_form.wallet_type %}
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn ghost" type="button" data-modal-close>Cancel</button>
-        <button class="btn primary" type="submit">Create Wallet</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<div class="modal" id="walletTransferModal" data-open="{% if open_wallet_transfer_modal %}true{% endif %}">
-  <div class="modal-backdrop" data-modal-close></div>
-  <div class="modal-dialog">
-    <div class="modal-header">
-      <div class="modal-title">Transfer Funds</div>
-      <button class="modal-close" type="button" data-modal-close><svg class="icon sm"><use href="#icon-x"></use></svg></button>
-    </div>
-    <form method="post">
-      {% csrf_token %}
-      <input type="hidden" name="action" value="wallet_transfer" />
-      <div class="modal-body">
-        {% if wallet_transfer_form.non_field_errors %}
-          <div class="alert danger">
-            {% for error in wallet_transfer_form.non_field_errors %}
-              <div>{{ error }}</div>
-            {% endfor %}
-          </div>
-        {% endif %}
-        <div class="form-grid">
-          {% include "partials/form_field.html" with field=wallet_transfer_form.from_wallet %}
-          {% include "partials/form_field.html" with field=wallet_transfer_form.to_wallet %}
-          {% include "partials/form_field.html" with field=wallet_transfer_form.amount %}
-          {% include "partials/form_field.html" with field=wallet_transfer_form.note %}
-        </div>
-        <div class="form-help">Transfers use the main balance of the selected wallet.</div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn ghost" type="button" data-modal-close>Cancel</button>
-        <button class="btn primary" type="submit">Transfer</button>
-      </div>
-    </form>
-  </div>
-</div>
 {% endblock %}
-

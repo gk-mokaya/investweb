@@ -6,6 +6,44 @@
     return '';
   }
 
+  var THEME_STORAGE_KEY = 'theme';
+
+  function getStoredTheme() {
+    try {
+      return localStorage.getItem(THEME_STORAGE_KEY);
+    } catch (error) {
+      return '';
+    }
+  }
+
+  function getPreferredTheme() {
+    var stored = getStoredTheme();
+    if (stored === 'light' || stored === 'dark') {
+      return stored;
+    }
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  }
+
+  function syncThemeControls(theme) {
+    var next = theme === 'light' ? 'light' : 'dark';
+    var isLight = next === 'light';
+    document.documentElement.dataset.theme = next;
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, next);
+    } catch (error) {}
+    document.querySelectorAll('[data-theme-toggle]').forEach(function (button) {
+      button.setAttribute('aria-pressed', isLight ? 'true' : 'false');
+      button.setAttribute('aria-label', isLight ? 'Switch to dark theme' : 'Switch to light theme');
+      button.title = isLight ? 'Switch to dark theme' : 'Switch to light theme';
+      var use = button.querySelector('use');
+      if (use) {
+        use.setAttribute('href', isLight ? '#icon-moon' : '#icon-sun');
+      }
+    });
+  }
+
+  syncThemeControls(document.documentElement.dataset.theme || getPreferredTheme());
+
   function openModal(modal) {
     if (!modal) return;
     modal.classList.add('is-open');
@@ -20,11 +58,158 @@
     }
   }
 
+  function openSidebar() {
+    var sidebar = document.querySelector('.sidebar');
+    if (!sidebar) return;
+    sidebar.classList.add('open');
+    document.body.classList.add('sidebar-open');
+  }
+
+  function closeSidebar() {
+    var sidebar = document.querySelector('.sidebar');
+    if (sidebar) {
+      sidebar.classList.remove('open');
+    }
+    document.body.classList.remove('sidebar-open');
+  }
+
+  function closeUserMenu() {
+    document.querySelectorAll('[data-user-menu-wrap].is-open').forEach(function (el) {
+      el.classList.remove('is-open');
+      var button = el.querySelector('[data-user-menu-toggle]');
+      if (button) {
+        button.setAttribute('aria-expanded', 'false');
+      }
+    });
+  }
+
+  function shouldShowPageLoaderForLink(link, event) {
+    if (!link) return false;
+    if (link.hasAttribute('data-no-page-loader')) return false;
+    if (link.hasAttribute('download')) return false;
+    if (link.getAttribute('target') && link.getAttribute('target') !== '_self') return false;
+    if (event && (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0)) return false;
+    var href = link.getAttribute('href') || '';
+    if (!href || href === '#' || href.indexOf('javascript:') === 0) return false;
+    if (href.indexOf('mailto:') === 0 || href.indexOf('tel:') === 0) return false;
+    try {
+      var url = new URL(href, window.location.href);
+      if (url.origin !== window.location.origin) return false;
+      if (url.pathname === window.location.pathname && url.hash && url.search === window.location.search) return false;
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  var pageLoader = document.getElementById('pageLoader');
+  var pageLoaderHideTimer = null;
+
+  function showPageLoader() {
+    if (!pageLoader) return;
+    if (pageLoaderHideTimer) {
+      clearTimeout(pageLoaderHideTimer);
+      pageLoaderHideTimer = null;
+    }
+    pageLoader.classList.add('is-open');
+    pageLoader.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('page-loading');
+  }
+
+  function hidePageLoader() {
+    if (!pageLoader) return;
+    pageLoader.classList.remove('is-open');
+    pageLoader.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('page-loading');
+    if (pageLoaderHideTimer) {
+      clearTimeout(pageLoaderHideTimer);
+      pageLoaderHideTimer = null;
+    }
+  }
+
+  function initAutoSubmitForms() {
+    var forms = document.querySelectorAll('form[data-auto-submit="true"]');
+    forms.forEach(function (form) {
+      if (form.dataset.autoSubmitBound === 'true') return;
+      form.dataset.autoSubmitBound = 'true';
+
+      var submitTimer = null;
+
+      function scheduleSubmit(delay) {
+        if (submitTimer) {
+          clearTimeout(submitTimer);
+          submitTimer = null;
+        }
+        submitTimer = setTimeout(function () {
+          submitTimer = null;
+          if (typeof form.requestSubmit === 'function') {
+            form.requestSubmit();
+          } else {
+            form.submit();
+          }
+        }, delay);
+      }
+
+      form.addEventListener('change', function (event) {
+        var target = event.target;
+        if (!target || target.disabled) return;
+        if (target.matches('select, input[type="date"], input[type="checkbox"], input[type="radio"]')) {
+          scheduleSubmit(0);
+        }
+      });
+
+      form.addEventListener('input', function (event) {
+        var target = event.target;
+        if (!target || target.disabled) return;
+        if (target.matches('input[type="text"], input[type="search"], textarea')) {
+          scheduleSubmit(300);
+        }
+      });
+
+      form.addEventListener('submit', function () {
+        if (submitTimer) {
+          clearTimeout(submitTimer);
+          submitTimer = null;
+        }
+      });
+    });
+  }
+
+  initAutoSubmitForms();
+
+  window.addEventListener('pageshow', function () {
+    hidePageLoader();
+  });
+
   document.querySelectorAll('.modal[data-open="true"]').forEach(function (modal) {
     openModal(modal);
   });
 
   document.addEventListener('click', function (event) {
+    var themeToggle = event.target.closest('[data-theme-toggle]');
+    if (themeToggle) {
+      var nextTheme = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+      syncThemeControls(nextTheme);
+      if (themeToggle.closest('[data-user-menu-wrap]')) {
+        closeUserMenu();
+      }
+      return;
+    }
+
+    var userMenuToggle = event.target.closest('[data-user-menu-toggle]');
+    if (userMenuToggle) {
+      var userMenuWrap = userMenuToggle.closest('[data-user-menu-wrap]');
+      if (userMenuWrap) {
+        var isOpen = userMenuWrap.classList.contains('is-open');
+        closeUserMenu();
+        if (!isOpen) {
+          userMenuWrap.classList.add('is-open');
+          userMenuToggle.setAttribute('aria-expanded', 'true');
+        }
+      }
+      return;
+    }
+
     var openTrigger = event.target.closest('[data-modal-open]');
     if (openTrigger) {
       var target = openTrigger.getAttribute('data-modal-open');
@@ -38,6 +223,9 @@
           planSelect.dispatchEvent(new Event('change', { bubbles: true }));
         }
       }
+      if (openTrigger.closest('[data-user-menu-wrap]')) {
+        closeUserMenu();
+      }
     }
 
     if (event.target.matches('.modal-backdrop') || event.target.closest('[data-modal-close]')) {
@@ -48,9 +236,28 @@
     var toggle = event.target.closest('[data-sidebar-toggle]');
     if (toggle) {
       var sidebar = document.querySelector('.sidebar');
-      if (sidebar) {
-        sidebar.classList.toggle('open');
+      if (sidebar && sidebar.classList.contains('open')) {
+        closeSidebar();
+      } else {
+        openSidebar();
       }
+      return;
+    }
+
+    var sidebarBackdrop = event.target.closest('[data-sidebar-backdrop]');
+    if (sidebarBackdrop) {
+      closeSidebar();
+      return;
+    }
+
+    var sidebarLink = event.target.closest('.sidebar .nav-item');
+    if (sidebarLink && window.matchMedia('(max-width: 1024px)').matches) {
+      closeSidebar();
+    }
+
+    var navLink = event.target.closest('a[href]');
+    if (shouldShowPageLoaderForLink(navLink, event)) {
+      showPageLoader();
     }
 
     var alertClose = event.target.closest('[data-alert-close]');
@@ -67,11 +274,16 @@
 
     var notifToggle = event.target.closest('[data-notif-toggle]');
     if (notifToggle) {
+      closeUserMenu();
       var notifWrap = notifToggle.closest('[data-notif-wrap]');
       if (notifWrap) {
         notifWrap.classList.toggle('is-open');
       }
       return;
+    }
+
+    if (!event.target.closest('[data-user-menu-wrap]')) {
+      closeUserMenu();
     }
 
     if (!event.target.closest('[data-notif-wrap]')) {
@@ -91,11 +303,12 @@
 
   document.addEventListener('submit', function (event) {
     var form = event.target;
-    if (!form || !form.method || form.method.toLowerCase() !== 'post') return;
+    if (!form || form.tagName !== 'FORM') return;
+    if (form.hasAttribute('data-no-page-loader') || form.closest('[data-chat-widget], [data-chat-inbox]')) return;
     var submitter = event.submitter || form.querySelector('button[type=\"submit\"], input[type=\"submit\"]');
-    if (!submitter) return;
-    var confirmMessage = submitter.getAttribute('data-confirm') || form.getAttribute('data-confirm');
-    if (confirmMessage && form.dataset.confirmed !== 'true') {
+    var method = (form.method || '').toLowerCase();
+    var confirmMessage = submitter ? (submitter.getAttribute('data-confirm') || form.getAttribute('data-confirm')) : form.getAttribute('data-confirm');
+    if (method === 'post' && confirmMessage && form.dataset.confirmed !== 'true') {
       event.preventDefault();
       openConfirmDialog(confirmMessage, form, submitter);
       return;
@@ -103,8 +316,23 @@
     if (form.dataset.confirmed === 'true') {
       delete form.dataset.confirmed;
     }
-    submitter.classList.add('is-loading');
-    submitter.setAttribute('disabled', 'disabled');
+    if (submitter) {
+      submitter.classList.add('is-loading');
+      submitter.setAttribute('disabled', 'disabled');
+    }
+    if (!form.hasAttribute('data-no-page-loader')) {
+      pageLoaderHideTimer = setTimeout(showPageLoader, 120);
+    }
+  });
+
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape') {
+      closeSidebar();
+      closeUserMenu();
+      document.querySelectorAll('[data-notif-wrap].is-open').forEach(function (el) {
+        el.classList.remove('is-open');
+      });
+    }
   });
 
   document.querySelectorAll('[data-tabs]').forEach(function (tabs) {
@@ -353,11 +581,32 @@
     function updateBalance() {
       var value = select.value;
       var balance = balances[value] || '0';
+      var selectedOption = select.options[select.selectedIndex];
+      var selectedWalletText = selectedOption ? selectedOption.textContent.trim() : '';
       if (targetInput) {
         if (targetInput.tagName === 'INPUT' || targetInput.tagName === 'TEXTAREA' || targetInput.tagName === 'SELECT') {
           targetInput.value = balance;
         } else {
-          targetInput.textContent = balance;
+          var nameEl = targetInput.querySelector('[data-wallet-selected-name]');
+          var helpEl = targetInput.querySelector('[data-wallet-balance-help]');
+          var statusEl = targetInput.querySelector('[data-wallet-balance-status]');
+          if (nameEl) {
+            nameEl.textContent = selectedWalletText || 'Selected wallet';
+          }
+          if (helpEl) {
+            helpEl.textContent = value ? balance : 'Select a wallet to see balance.';
+          }
+          if (statusEl) {
+            if (value) {
+              statusEl.style.display = 'inline-flex';
+              statusEl.classList.remove('success', 'danger', 'warning', 'info');
+              statusEl.classList.add('info');
+              statusEl.textContent = 'Ready';
+            } else {
+              statusEl.style.display = 'none';
+              statusEl.classList.remove('success', 'danger', 'warning', 'info');
+            }
+          }
         }
       }
       if (autoInput) {
@@ -803,13 +1052,19 @@
           status = 'Completed';
         }
         var progressWidth = isPending ? 0 : 100;
+        var statusClass = 'is-pending';
+        if (status === 'Completed') {
+          statusClass = 'is-completed';
+        } else if (status === 'Earned') {
+          statusClass = 'is-earned';
+        }
         rows.push(
-          '<tr class=\"' + (isPending ? 'is-pending' : 'is-earned') + '\">' +
+          '<tr class=\"schedule-row ' + statusClass + '\">' +
             '<td data-label=\"Date\">' + formatDate(cursor) + '</td>' +
             '<td data-label=\"Daily Profit\">' + formatMoney(dayProfit, currency) + '</td>' +
             '<td data-label=\"Cumulative Profit\">' + formatMoney(cumulative, currency) + '</td>' +
             '<td data-label=\"Status\">' +
-              '<div class=\"schedule-status\">' + status + '</div>' +
+              '<span class=\"schedule-status-badge ' + statusClass + '\">' + status + '</span>' +
               '<div class=\"schedule-progress\"><span style=\"width: ' + progressWidth + '%\"></span></div>' +
             '</td>' +
           '</tr>'

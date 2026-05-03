@@ -1,0 +1,51 @@
+{% extends "public_base.html" %}
+
+{% block title %}{{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }} | Modern Investment Platform{% endblock %}
+
+{% block content %}
+<section class="public-intro-section">
+  <div class="public-hero public-hero-minimal">
+    <div class="public-hero-copy">
+      <span class="eyebrow">Welcome</span>
+    <h1>How the platform works.</h1>
+    <p class="hero-intro">
+      {% if welcome_copy %}{{ welcome_copy }}{% endif %} Open your account, complete verification, receive the welcome bonus, and review live plans through a simple onboarding flow.
+    </p>
+      <div class="hero-actions">
+        <a class="btn primary" href="{% url 'register' %}">Create account</a>
+        <a class="btn ghost" href="{% url 'plans' %}">Open plans</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-heading compact-heading">
+    <span class="eyebrow">How it works</span>
+    <h2>From account creation to your first investment.</h2>
+  </div>
+
+  <div class="process-grid compact">
+    <div class="process-card">
+      <span class="process-step">01</span>
+      <h3>Create your account</h3>
+      <p>Register with your email and begin with a straightforward onboarding flow.</p>
+    </div>
+    
+    <div class="process-card">
+      <span class="process-step">02</span>
+      <h3>Complete KYC verification</h3>
+      <p>Complete identity verification to unlock account actions and keep the platform secure.</p>
+    </div>
+    
+    <div class="process-card">
+      <span class="process-step">03</span>
+      <h3>Receive your welcome bonus</h3>
+      <p>Get a welcome bonus credited to your account to kickstart your investment journey.</p>
+    </div>
+    <div class="process-card">
+      <span class="process-step">04</span>
+      <h3>Choose a plan and invest</h3>
+      <p>Review the live plans and start investing when you are ready.</p>
+    </div>
+  </div>
+</section>
+{% endblock %}

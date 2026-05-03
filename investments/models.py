@@ -97,7 +97,6 @@ class UserInvestment(models.Model):
     end_date = models.DateTimeField()
     total_earned = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0'))
     is_completed = models.BooleanField(default=False)
-    auto_reinvest = models.BooleanField(default=False)
     risk_acknowledged = models.BooleanField(default=False)
 
     def __str__(self) -> str:
@@ -115,16 +114,5 @@ class DailyProfit(models.Model):
 
     def __str__(self) -> str:
         return f"{self.investment.id} - {self.date}"
-
-
-class BonusTracker(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    bonus_amount = models.DecimalField(max_digits=12, decimal_places=2)
-    required_profit = models.DecimalField(max_digits=12, decimal_places=2)
-    achieved_profit = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0'))
-    is_unlocked = models.BooleanField(default=False)
-
-    def __str__(self) -> str:
-        return f"BonusTracker: {self.user.username}"
 
 # Create your models here.

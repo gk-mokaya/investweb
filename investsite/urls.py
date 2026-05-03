@@ -26,6 +26,7 @@ urlpatterns = [
     path('deposits/', include('deposits.urls')),
     path('withdrawals/', include('withdrawals.urls')),
     path('staff/', include('adminpanel.urls')),
+    path('', include('supportchat.urls')),
 ]
 
 if settings.DEBUG:

@@ -1,21 +1,26 @@
 from decimal import Decimal
 from collections import defaultdict
+from decimal import Decimal
+from datetime import date, timedelta
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Sum
-from django.core.cache import cache
-from datetime import timedelta
 from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.views.generic import FormView, ListView, TemplateView
+from django.db.models.functions import TruncDate
 
 from investments.forms import CreateInvestmentForm, InvestmentPlanForm
-from investments.models import BonusTracker, InvestmentPlan, UserInvestment, DailyProfit
+from investments.models import InvestmentPlan, UserInvestment, DailyProfit
 from investments.services import create_investment
 from accounts.services import create_notification
+from accounts.models import UserProfile
+from deposits.models import Deposit
 from wallets.models import Wallet
 from wallets.services import get_primary_wallet
+from settingsconfig.utils import get_setting, get_setting_decimal
+from withdrawals.models import Withdrawal
 
 
 def attach_profit_schedule(investments, max_rows=30):
@@ -38,140 +43,250 @@ def attach_profit_schedule(investments, max_rows=30):
 class DashboardView(LoginRequiredMixin, TemplateView):
     template_name = 'dashboard.html'
 
-    def _build_points(self, series, width, height, padding):
-        if not series:
-            mid_y = round(height / 2)
-            return {
-                'line': f"{padding},{mid_y} {width - padding},{mid_y}",
-                'area': f"{padding},{height - padding} {padding},{mid_y} {width - padding},{mid_y} {width - padding},{height - padding}",
-            }
-        max_v = max(series)
-        min_v = min(series)
-        span = max_v - min_v
-        if span == 0:
-            span = 1
-        step = (width - 2 * padding) / (len(series) - 1 or 1)
-        points = []
-        for idx, value in enumerate(series):
-            x = padding + idx * step
-            y = height - padding - ((value - min_v) / span) * (height - 2 * padding)
-            points.append(f"{round(x, 2)},{round(y, 2)}")
-        line = " ".join(points)
-        area = f"{padding},{height - padding} {line} {width - padding},{height - padding}"
-        return {'line': line, 'area': area}
+    @staticmethod
+    def _line_path(values, width=420, height=220, padding=16):
+        points = list(values)
+        if not points:
+            return '', ''
+        max_value = max(points) or Decimal('1')
+        span_x = width - (padding * 2)
+        span_y = height - (padding * 2)
+        denom = max(len(points) - 1, 1)
+        coords = []
+        for index, value in enumerate(points):
+            x = padding + (span_x * index / denom)
+            y = height - padding - (span_y * (float(value) / float(max_value) if max_value else 0))
+            coords.append(f"{x:.1f},{y:.1f}")
+        area = f"M {padding},{height - padding} L " + " L ".join(coords) + f" L {width - padding},{height - padding} Z"
+        line = "M " + " L ".join(coords)
+        return area, line
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        cache_key = f"dashboard_totals_{self.request.user.id}"
-        cached = cache.get(cache_key)
-
         wallet = get_primary_wallet(self.request.user)
-        investments_qs = UserInvestment.objects.filter(user=self.request.user).order_by('-start_date')
-        bonus = BonusTracker.objects.filter(user=self.request.user).first()
-
-        if cached:
-            total_invested = cached['total_invested']
-            total_earned = cached['total_earned']
-            allocation = cached['allocation']
-            profit_series = cached['profit_series']
-            profit_labels = cached['profit_labels']
-            profit_pairs = cached.get('profit_pairs', list(zip(profit_labels, profit_series)))
-            profit_points = cached.get('profit_points', [])
-            line_points = cached.get('line_points', {})
-            sparkline_points = cached.get('sparkline_points', {})
-        else:
-            total_invested = investments_qs.aggregate(total=Sum('amount'))['total'] or Decimal('0')
-            total_earned = investments_qs.aggregate(total=Sum('total_earned'))['total'] or Decimal('0')
-
-            allocation_queryset = (
-                investments_qs.values('plan__name')
-                .annotate(total=Sum('amount'))
-                .order_by('-total')
+        investments_qs = UserInvestment.objects.filter(user=self.request.user).select_related('plan', 'wallet').order_by('-start_date')
+        active_investments = investments_qs.filter(is_completed=False)
+        total_invested = investments_qs.aggregate(total=Sum('amount'))['total'] or Decimal('0')
+        total_earned = investments_qs.aggregate(total=Sum('total_earned'))['total'] or Decimal('0')
+        active_investments_count = active_investments.count()
+        plan_allocation_qs = list(
+            investments_qs.values('plan__name').annotate(total=Sum('amount')).order_by('-total')[:5]
+        )
+        recent_investments = []
+        for investment in investments_qs[:3]:
+            duration_days = max((investment.end_date - investment.start_date).days, 1)
+            elapsed_days = max((timezone.now() - investment.start_date).days, 0)
+            progress = min(100, round((elapsed_days / duration_days) * 100))
+            days_left = max((investment.end_date - timezone.now()).days, 0)
+            recent_investments.append(
+                {
+                    'investment': investment,
+                    'progress': progress,
+                    'days_left': days_left,
+                }
             )
-            allocation = []
-            for row in allocation_queryset:
-                percent = (row['total'] / total_invested * 100) if total_invested else 0
-                allocation.append({'name': row['plan__name'], 'total': row['total'], 'percent': round(percent, 2)})
+        next_maturity = active_investments.order_by('end_date').first()
+        profile = UserProfile.objects.filter(user=self.request.user).first()
+        bonus_balance = wallet.bonus_balance if wallet else Decimal('0')
+        bonus_active = bool(wallet and bonus_balance > 0 and profile and not profile.has_withdrawn)
+        today = timezone.localdate()
+        raw_start = self.request.GET.get('start_date', '').strip()
+        raw_end = self.request.GET.get('end_date', '').strip()
 
-            today = timezone.now().date()
-            start_date = today - timedelta(days=6)
-            profits = (
-                DailyProfit.objects.filter(investment__user=self.request.user, date__gte=start_date)
+        def parse_date(value):
+            if not value:
+                return None
+            try:
+                return date.fromisoformat(value)
+            except ValueError:
+                return None
+
+        selected_start = parse_date(raw_start) or (today - timedelta(days=6))
+        selected_end = parse_date(raw_end) or today
+        if selected_end < selected_start:
+            selected_start, selected_end = selected_end, selected_start
+        max_window = timedelta(days=90)
+        if selected_end - selected_start > max_window:
+            selected_end = selected_start + max_window
+        days = [selected_start + timedelta(days=offset) for offset in range((selected_end - selected_start).days + 1)]
+        date_window = (days[0], days[-1])
+
+        def daily_amounts_datetime(queryset, date_field):
+            data = (
+                queryset.filter(**{f'{date_field}__date__range': date_window})
+                .annotate(day=TruncDate(date_field))
+                .values('day')
+                .annotate(total=Sum('amount'))
+            )
+            return {row['day']: (row['total'] or Decimal('0')) for row in data}
+
+        def daily_amounts_date(queryset, date_field):
+            data = (
+                queryset.filter(**{f'{date_field}__range': date_window})
                 .values('date')
                 .annotate(total=Sum('amount'))
-                .order_by('date')
             )
-            profit_map = {row['date']: row['total'] for row in profits}
-            profit_labels = []
-            profit_series = []
-            profit_points = []
-            for i in range(7):
-                day = start_date + timedelta(days=i)
-                profit_labels.append(day.strftime('%b %d'))
-                profit_series.append(float(profit_map.get(day, 0)))
-            max_profit = max(profit_series) if profit_series else 0
-            for label, value in zip(profit_labels, profit_series):
-                height = int((value / max_profit) * 100) if max_profit else 0
-                profit_points.append({'label': label, 'value': value, 'height': height})
-            profit_pairs = list(zip(profit_labels, profit_series))
-            line_points = self._build_points(profit_series, width=320, height=180, padding=14)
-            sparkline_points = self._build_points(profit_series, width=90, height=28, padding=4)
+            return {row['date']: (row['total'] or Decimal('0')) for row in data}
 
-            cache.set(
-                cache_key,
+        deposit_map = daily_amounts_datetime(
+            Deposit.objects.filter(user=self.request.user, status='completed', completed_at__isnull=False),
+            'completed_at',
+        )
+        withdrawal_map = daily_amounts_datetime(
+            Withdrawal.objects.filter(user=self.request.user, status__in=['approved', 'completed']),
+            'created_at',
+        )
+        profit_map = daily_amounts_date(
+            DailyProfit.objects.filter(investment__user=self.request.user),
+            'date',
+        )
+        activity_days = [day.strftime('%b %d') for day in days]
+        if len(days) <= 7:
+            activity_axis_labels = activity_days
+        else:
+            sample_indexes = sorted(
                 {
-                    'total_invested': total_invested,
-                    'total_earned': total_earned,
-                    'allocation': allocation,
-                    'profit_series': profit_series,
-                    'profit_labels': profit_labels,
-                    'profit_pairs': profit_pairs,
-                    'profit_points': profit_points,
-                    'line_points': line_points,
-                    'sparkline_points': sparkline_points,
-                },
-                60,
+                    round(index * (len(days) - 1) / 6)
+                    for index in range(7)
+                }
             )
+            activity_axis_labels = [activity_days[index] for index in sample_indexes]
+        activity_deposits = [deposit_map.get(day, Decimal('0')) for day in days]
+        activity_withdrawals = [withdrawal_map.get(day, Decimal('0')) for day in days]
+        activity_profits = [profit_map.get(day, Decimal('0')) for day in days]
+        deposit_area_path, deposit_line_path = self._line_path(activity_deposits)
+        withdrawal_area_path, withdrawal_line_path = self._line_path(activity_withdrawals)
+        profit_area_path, profit_line_path = self._line_path(activity_profits)
+
+        balance_total = sum(
+            (
+                wallet.main_balance if wallet else Decimal('0'),
+                wallet.bonus_balance if wallet else Decimal('0'),
+                wallet.profit_balance if wallet else Decimal('0'),
+            ),
+            start=Decimal('0'),
+        )
+        balance_segments = []
+        for label, value, tone in [
+            ('Main', wallet.main_balance if wallet else Decimal('0'), 'info'),
+            ('Profit', wallet.profit_balance if wallet else Decimal('0'), 'success'),
+        ]:
+            percent = 0 if balance_total == 0 else round((value / balance_total) * 100)
+            balance_segments.append({'label': label, 'value': value, 'tone': tone, 'percent': percent})
+
+        plan_total = sum((row['total'] or Decimal('0') for row in plan_allocation_qs), start=Decimal('0'))
+        plan_allocation = []
+        for row in plan_allocation_qs:
+            value = row['total'] or Decimal('0')
+            percent = 0 if plan_total == 0 else round((value / plan_total) * 100)
+            plan_allocation.append({'label': row['plan__name'] or 'Plan', 'value': value, 'percent': percent})
+
+        balance_overview_note = (
+            f"{bonus_balance} bonus and {wallet.profit_balance if wallet else Decimal('0')} profit are already included in your balance overview."
+            if bonus_active
+            else f"{wallet.profit_balance if wallet else Decimal('0')} profit is already included in your balance overview."
+        )
+
         context.update(
             wallet=wallet,
-            investments=attach_profit_schedule(investments_qs[:5], max_rows=30),
+            investments=recent_investments,
             total_invested=total_invested,
             total_earned=total_earned,
-            bonus=bonus,
-            today=timezone.now(),
-            allocation=allocation,
-            profit_series=profit_series,
-            profit_labels=profit_labels,
-            profit_pairs=profit_pairs,
-            profit_points=profit_points,
-            line_points=line_points,
-            sparkline_points=sparkline_points,
+            active_investments_count=active_investments_count,
+            total_balance=wallet.total_balance if wallet else Decimal('0'),
+            bonus_balance=bonus_balance,
+            profit_balance=wallet.profit_balance if wallet else Decimal('0'),
+            withdrawable_balance=wallet.withdrawable_balance if wallet else Decimal('0'),
+            bonus_active=bonus_active,
+            bonus_balance_note=f"{bonus_balance} bonus included in your account balance." if bonus_active else '',
+            balance_overview_note=balance_overview_note,
+            next_maturity=next_maturity,
+            next_maturity_days=(max((next_maturity.end_date - timezone.now()).days, 0) if next_maturity else None),
+            chart_start_date=selected_start.isoformat(),
+            chart_end_date=selected_end.isoformat(),
+            chart_range_label=f"{selected_start.strftime('%b %d, %Y')} - {selected_end.strftime('%b %d, %Y')}",
+            chart_heading=f"Activity: {selected_start.strftime('%b %d, %Y')} - {selected_end.strftime('%b %d, %Y')}",
+            activity_days=activity_days,
+            activity_axis_labels=activity_axis_labels,
+            activity_series=[
+                {
+                    'label': 'Deposits',
+                    'tone': 'success',
+                    'total': sum(activity_deposits, Decimal('0')),
+                    'area_path': deposit_area_path,
+                    'line_path': deposit_line_path,
+                },
+                {
+                    'label': 'Withdrawals',
+                    'tone': 'danger',
+                    'total': sum(activity_withdrawals, Decimal('0')),
+                    'area_path': withdrawal_area_path,
+                    'line_path': withdrawal_line_path,
+                },
+                {
+                    'label': 'Profit',
+                    'tone': 'info',
+                    'total': sum(activity_profits, Decimal('0')),
+                    'area_path': profit_area_path,
+                    'line_path': profit_line_path,
+                },
+            ],
+            balance_segments=balance_segments,
+            plan_allocation=plan_allocation,
         )
         return context
 
 
-class PlanListView(LoginRequiredMixin, ListView):
+class LandingView(TemplateView):
+    template_name = 'landing.html'
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            return redirect('dashboard')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        plans = InvestmentPlan.objects.filter(is_active=True).order_by('min_amount')
+        context['featured_plans'] = plans[:4]
+        context['plan_count'] = plans.count()
+        context['bonus_amount'] = get_setting_decimal('WELCOME_BONUS', default='50')
+        context['min_withdrawal_amount'] = get_setting_decimal('MIN_WITHDRAWAL_AMOUNT', default='10')
+        context['currency'] = str(get_setting('CURRENCY', default='USD') or 'USD')
+        context['welcome_copy'] = (
+            f"Start with a configurable welcome bonus, then scale into live plans with a clear withdrawal floor."
+        )
+        return context
+
+
+class PlanListView(ListView):
     template_name = 'plans.html'
     model = InvestmentPlan
     context_object_name = 'plans'
     paginate_by = 12
+
+    def _base_template(self):
+        return 'base.html' if self.request.user.is_authenticated else 'public_base.html'
 
     def get_queryset(self):
         return InvestmentPlan.objects.filter(is_active=True).order_by('min_amount')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context['base_template'] = self._base_template()
         context['plan_form'] = InvestmentPlanForm()
-        context['create_form'] = CreateInvestmentForm(user=self.request.user)
+        context['can_invest'] = self.request.user.is_authenticated
+        context['create_form'] = CreateInvestmentForm(user=self.request.user) if self.request.user.is_authenticated else None
         context['open_plan_modal'] = False
         context['open_investment_modal'] = False
-        wallet = Wallet.objects.filter(
-            user=self.request.user,
-            wallet_type__in=['primary', 'trading'],
-            is_active=True,
-        ).order_by('-is_default', 'created_at').first()
-        if wallet:
-            context['create_form'].fields['amount'].widget.attrs['data-available'] = str(wallet.total_balance)
+        if self.request.user.is_authenticated:
+            wallet = Wallet.objects.filter(
+                user=self.request.user,
+                wallet_type__in=['primary', 'trading'],
+                is_active=True,
+            ).order_by('-is_default', 'created_at').first()
+            if wallet and context['create_form']:
+                context['create_form'].fields['amount'].widget.attrs['data-available'] = str(wallet.total_balance)
         return context
 
     def post(self, request, *args, **kwargs):
@@ -236,7 +351,6 @@ class CreateInvestmentView(LoginRequiredMixin, FormView):
                 plan,
                 amount,
                 wallet=wallet,
-                auto_reinvest=form.cleaned_data.get('auto_reinvest', False),
                 risk_acknowledged=form.cleaned_data.get('risk_acknowledged', False),
             )
             messages.success(self.request, "Investment created successfully.")
@@ -264,6 +378,8 @@ class CreateInvestmentView(LoginRequiredMixin, FormView):
                 'create_form': form,
                 'open_plan_modal': False,
                 'open_investment_modal': True,
+                'base_template': self._base_template(),
+                'can_invest': self.request.user.is_authenticated,
             }
             return self.render_to_response(context, template_name='plans.html')
 

@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block title %}Support Chat | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
+
+{% block content %}
+<section class="section-card support-chat-shell" data-chat-inbox data-chat-role="staff" data-chat-ws-base="/ws/support-chat/" data-chat-messages-base="/chat/conversations/" data-chat-start-url="{% url 'support_chat_start' %}" data-chat-storage-key="support-chat-staff" data-selected-conversation-id="{{ selected_conversation.id|default:'' }}" data-selected-conversation-token="{{ selected_conversation.public_token|default:'' }}">
+  <div class="support-chat-layout">
+    <aside class="support-chat-list">
+      <div class="support-chat-list-head">
+        <div>
+          <div class="support-chat-list-title">Conversations</div>
+          <div class="support-chat-list-subtitle">Latest replies first</div>
+        </div>
+        <span class="badge info">{{ inbox_stats.unread|default:0 }} unread</span>
+      </div>
+
+      <div class="support-chat-list-scroll">
+        {% for conversation in conversations %}
+          <button
+            type="button"
+            class="support-chat-item {% if selected_conversation and conversation.id == selected_conversation.id %}active{% endif %}"
+            data-chat-select
+            data-conversation-id="{{ conversation.id }}"
+            data-conversation-token="{{ conversation.public_token }}"
+            data-status="{{ conversation.status }}"
+          >
+            <div class="support-chat-avatar">{{ conversation.display_name|default:'?'|slice:":1"|upper }}</div>
+            <div class="support-chat-item-body">
+              <div class="support-chat-item-top">
+                <div class="support-chat-item-name">{{ conversation.display_name }}</div>
+                <span class="support-chat-item-time">
+                  {% if conversation.last_message_at %}{{ conversation.last_message_at|date:"H:i" }}{% else %}New{% endif %}
+                </span>
+              </div>
+              <div class="support-chat-item-preview">{{ conversation.subject|default:"Support chat" }}</div>
+              <div class="support-chat-item-meta">
+                <span>{{ conversation.contact_label }}</span>
+                {% if conversation.unread_admin_count %}
+                  <span class="badge danger">{{ conversation.unread_admin_count }}</span>
+                {% elif conversation.status == 'closed' %}
+                  <span class="badge">Closed</span>
+                {% else %}
+                  <span class="badge success">Open</span>
+                {% endif %}
+              </div>
+            </div>
+          </button>
+        {% empty %}
+          <div class="empty-state">No support conversations yet.</div>
+        {% endfor %}
+      </div>
+    </aside>
+
+    <main class="support-chat-thread-card">
+      <header class="support-chat-thread-head">
+        <div class="support-chat-thread-persona">
+          <div class="support-chat-avatar support-chat-avatar-lg">
+            {{ selected_conversation.display_name|default:'S'|slice:":1"|upper }}
+          </div>
+          <div>
+            <div class="support-chat-thread-title" data-chat-thread-title>
+              {% if selected_conversation %}{{ selected_conversation.display_name }}{% else %}Select a conversation{% endif %}
+            </div>
+            <div class="support-chat-thread-subtitle" data-chat-thread-subtitle>
+              {% if selected_conversation %}
+                {{ selected_conversation.subject|default:"Support chat" }} | {{ selected_conversation.contact_label }}
+              {% else %}
+                Choose a thread from the list.
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="support-chat-thread-status">
+          <span class="badge info" data-chat-thread-status>
+            {% if selected_conversation %}{{ selected_conversation.get_status_display }}{% else %}Idle{% endif %}
+          </span>
+          <span class="support-chat-thread-note">
+            {% if selected_conversation and selected_conversation.last_message_at %}
+              Last active {{ selected_conversation.last_message_at|date:"M d, H:i" }}
+            {% else %}
+              Waiting for a thread
+            {% endif %}
+          </span>
+        </div>
+      </header>
+
+      <section class="chat-thread chat-thread-dashboard" data-chat-thread>
+        {% if selected_messages %}
+          {% for message in selected_messages %}
+            <div class="chat-bubble {{ message.sender_role }} {% if message.sender_role == 'admin' %}outgoing{% else %}incoming{% endif %}">
+              <div class="chat-bubble-meta">
+                <strong>{% if message.sender_role == 'admin' %}Staff{% else %}Client{% endif %}</strong>
+                <span>{{ message.created_at|date:"M d, H:i" }}</span>
+              </div>
+              <div class="chat-bubble-text">{{ message.content }}</div>
+              {% if message.attachment %}
+                <div class="chat-bubble-image">
+                  <img src="{{ message.attachment.url }}" alt="Chat attachment" />
+                </div>
+              {% endif %}
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="chat-empty">
+            <strong>No messages yet</strong>
+            <span>Pick a conversation to start the thread.</span>
+          </div>
+        {% endif %}
+      </section>
+
+      <div class="chat-attachment-preview" data-chat-attachment-preview hidden></div>
+
+      <form class="chat-compose chat-compose-dashboard" data-chat-compose data-no-page-loader="true">
+        {% csrf_token %}
+        <input type="file" class="chat-file-input" data-chat-attachment accept="image/*" hidden />
+        <button type="button" class="chat-compose-action" data-chat-attach aria-label="Attach image">
+          <svg class="icon sm"><use href="#icon-plus"></use></svg>
+        </button>
+        <textarea data-chat-input rows="1" placeholder="Write a reply..."></textarea>
+        <button type="submit" class="btn primary chat-send" aria-label="Send reply">
+          <svg class="icon sm"><use href="#icon-send"></use></svg>
+        </button>
+      </form>
+    </main>
+  </div>
+
+  <script type="application/json" data-chat-selected-messages>{{ selected_messages_json|safe }}</script>
+</section>
+{% endblock %}

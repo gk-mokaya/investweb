@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}My Investments | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
+{% block title %}Investment History | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
 
 {% block content %}
 <div class="card-grid">
   <div class="card">
     <div class="card-header">
       <div>
-        <div class="card-title">Active Investments</div>
-        <div class="card-muted">Running plans</div>
+        <div class="card-title">Open investments</div>
+        <div class="card-muted">Currently running plans</div>
       </div>
       <span class="badge info">{{ investments|length }}</span>
     </div>
@@ -17,8 +17,8 @@
   <div class="card">
     <div class="card-header">
       <div>
-        <div class="card-title">Available Balance</div>
-        <div class="card-muted">Ready to invest</div>
+        <div class="card-title">Wallet balance</div>
+        <div class="card-muted">Ready for allocation</div>
       </div>
       <span class="badge info">Wallet</span>
     </div>
@@ -29,11 +29,11 @@
 <div class="section-card">
   <div class="section-header">
     <div>
-      <div class="section-title">Investments</div>
-      <div class="card-muted">Manage and review your investments.</div>
+      <div class="section-title">Investment history</div>
+      <div class="card-muted">Review your active and completed positions.</div>
     </div>
     <div class="section-actions">
-      <button class="btn primary" data-modal-open="#investmentModal" type="button">New Investment</button>
+      <button class="btn primary" data-modal-open="#investmentModal" type="button">New investment</button>
     </div>
   </div>
 
@@ -85,16 +85,16 @@
 </div>
 
 {% for investment in investments %}
-  <div class="modal" id="investmentView{{ investment.id }}">
+  <div class="modal modal-mobile-full" id="investmentView{{ investment.id }}">
     <div class="modal-backdrop" data-modal-close></div>
     <div class="modal-dialog">
       <div class="modal-header">
-        <div class="modal-title">Investment Details</div>
+        <div class="modal-title">Investment details</div>
         <button class="modal-close" type="button" data-modal-close><svg class="icon sm"><use href="#icon-x"></use></svg></button>
       </div>
       <div class="modal-body">
         <div class="plan-details-section">
-          <div class="modal-section-title">Investment Details</div>
+          <div class="modal-section-title">Investment details</div>
           <div class="plan-detail-grid investment-detail-grid">
             <div class="detail-item">
               <div class="detail-label">Wallet</div>
@@ -109,11 +109,11 @@
               <div class="detail-value">{{ investment.amount }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</div>
             </div>
             <div class="detail-item">
-              <div class="detail-label">Start Date</div>
+              <div class="detail-label">Start date</div>
               <div class="detail-value">{{ investment.start_date|date:"M d, Y" }}</div>
             </div>
             <div class="detail-item">
-              <div class="detail-label">End Date</div>
+              <div class="detail-label">End date</div>
               <div class="detail-value">{{ investment.end_date|date:"M d, Y" }}</div>
             </div>
             <div class="detail-item">
@@ -137,17 +137,13 @@
               <div class="detail-value">{{ investment.plan.get_liquidity_terms_display }}</div>
             </div>
             <div class="detail-item">
-              <div class="detail-label">Total Earned</div>
+              <div class="detail-label">Total earned</div>
               <div class="detail-value">{{ investment.total_earned }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</div>
-            </div>
-            <div class="detail-item">
-              <div class="detail-label">Auto Reinvest</div>
-              <div class="detail-value">{% if investment.auto_reinvest %}Enabled{% else %}Off{% endif %}</div>
             </div>
           </div>
         </div>
         <div class="schedule-section">
-          <div class="modal-section-title">Profit Schedule</div>
+          <div class="modal-section-title">Payout schedule</div>
           <div class="table-wrapper">
             <table class="table schedule-table"
                    data-schedule-table
@@ -170,7 +166,7 @@
               <tbody>
                 <tr>
                   <td colspan="4">
-                    <div class="empty-state">Schedule loading...</div>
+                    <div class="empty-state">Loading schedule...</div>
                   </td>
                 </tr>
               </tbody>
@@ -185,7 +181,7 @@
   </div>
 {% endfor %}
 
-<div class="modal" id="investmentModal" data-open="{% if open_investment_modal %}true{% endif %}"> data-open="{% if open_investment_modal %}true{% endif %}">
+<div class="modal modal-mobile-full" id="investmentModal" data-open="{% if open_investment_modal %}true{% endif %}">
   <div class="modal-backdrop" data-modal-close></div>
   <div class="modal-dialog">
     <div class="modal-header">
@@ -291,19 +287,12 @@
             </div>
           </div>
           <div class="investment-toggles-compact">
-            <div class="toggle-pair">
-              <label class="modern-switch">
-                {{ create_form.auto_reinvest }}
-                <span class="modern-switch-track"></span>
-                <span class="toggle-label">Auto reinvest</span>
-              </label>
-              <label class="modern-switch">
-                {{ create_form.risk_acknowledged }}
-                <span class="modern-switch-track"></span>
-                <span class="toggle-label">Risk acknowledged</span>
-              </label>
-              <div class="form-help risk-help">Required: you must acknowledge the risks before submitting.</div>
-            </div>
+            <label class="modern-switch modern-switch-full">
+              {{ create_form.risk_acknowledged }}
+              <span class="modern-switch-track"></span>
+              <span class="toggle-label">Risk acknowledged</span>
+            </label>
+            <div class="form-help risk-help">Required: you must acknowledge the risks before submitting.</div>
           </div>
         </div>
       </div>

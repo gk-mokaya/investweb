@@ -1,96 +1,209 @@
 {% extends "base.html" %}
 
-{% block title %}Admin Dashboard | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
+{% block title %}Staff Dashboard | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
 
 {% block content %}
-<div class="card-grid">
-  <div class="card">
-    <div class="card-header">
-      <div>
-        <div class="card-title">Total Users</div>
-        <div class="card-muted">Registered accounts</div>
+<div class="profile-hero admin-hero">
+  <div class="profile-hero-main">
+    <div class="profile-avatar">ST</div>
+    <div>
+      <div class="profile-name">Staff command center</div>
+      <div class="profile-email">Management signals, queue pressure, and platform controls in one place.</div>
+      <div class="profile-meta">
+        <span class="chip">{{ counts.users }} users</span>
+        <span class="chip">{{ counts.staff }} staff</span>
+        <span class="chip">{{ counts.kyc }} KYC</span>
+        <span class="chip">{{ counts.deposits }} deposits</span>
+        <span class="chip">{{ counts.withdrawals }} withdrawals</span>
       </div>
-      <span class="badge info">Users</span>
     </div>
-    <div class="metric-value">{{ counts.users }}</div>
   </div>
-  <div class="card">
-    <div class="card-header">
-      <div>
-        <div class="card-title">Total Invested</div>
-        <div class="card-muted">All active portfolios</div>
-      </div>
-      <span class="badge info">Capital</span>
+
+  <div class="profile-hero-stats">
+    <div class="profile-stat">
+      <div class="stat-label">Payment mode</div>
+      <div class="stat-value">{{ payment_config.get_mode_display|default:'Manual Only' }}</div>
+      <div class="card-muted">Deposit and withdrawal operating mode</div>
     </div>
-    <div class="metric-value">{{ counts.invested }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</div>
-  </div>
-  <div class="card">
-    <div class="card-header">
-      <div>
-        <div class="card-title">Active Plans</div>
-        <div class="card-muted">Available offerings</div>
-      </div>
-      <span class="badge info">Plans</span>
+    <div class="profile-stat">
+      <div class="stat-label">Platform currency</div>
+      <div class="stat-value">{{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</div>
+      <div class="card-muted">Reporting and payout currency</div>
     </div>
-    <div class="metric-value">{{ counts.active_plans }}</div>
-  </div>
-  <div class="card">
-    <div class="card-header">
-      <div>
-        <div class="card-title">Pending Deposits</div>
-        <div class="card-muted">Awaiting confirmation</div>
-      </div>
-      <span class="badge warning">{{ counts.deposits }}</span>
+    <div class="profile-stat">
+      <div class="stat-label">Active plans</div>
+      <div class="stat-value">{{ counts.active_plans }}</div>
+      <div class="card-muted">Live products currently available</div>
     </div>
-    <div class="metric-value">{{ counts.deposits }}</div>
-  </div>
-  <div class="card">
-    <div class="card-header">
-      <div>
-        <div class="card-title">Pending Withdrawals</div>
-        <div class="card-muted">Require action</div>
-      </div>
-      <span class="badge warning">{{ counts.withdrawals }}</span>
+    <div class="profile-stat">
+      <div class="stat-label">Audit trail</div>
+      <div class="stat-value">{{ counts.audit_logs }}</div>
+      <div class="card-muted">Recorded staff actions</div>
     </div>
-    <div class="metric-value">{{ counts.withdrawals }}</div>
-  </div>
-  <div class="card">
-    <div class="card-header">
-      <div>
-        <div class="card-title">Pending KYC</div>
-        <div class="card-muted">Verification queue</div>
-      </div>
-      <span class="badge warning">{{ counts.kyc }}</span>
-    </div>
-    <div class="metric-value">{{ counts.kyc }}</div>
-  </div>
-  <div class="card">
-    <div class="card-header">
-      <div>
-        <div class="card-title">Inactive Wallets</div>
-        <div class="card-muted">Needs activation</div>
-      </div>
-      <span class="badge warning">{{ counts.wallets }}</span>
-    </div>
-    <div class="metric-value">{{ counts.wallets }}</div>
   </div>
 </div>
 
 <div class="section-card">
   <div class="section-header">
     <div>
-      <div class="section-title">Operations Center</div>
-      <div class="card-muted">Review KYC, deposits, withdrawals, and plan management.</div>
+      <div class="section-title">Management insights</div>
+      <div class="card-muted">A quick read on workload, throughput, and control state.</div>
     </div>
     <div class="section-actions">
-      <form method="post" action="{% url 'admin_sync_profits' %}" style="display:inline-flex;">
+      <form method="post" action="{% url 'admin_sync_profits' %}" style="display:inline-flex;" data-confirm="Run payout catch-up now? This will process all due payouts immediately.">
         {% csrf_token %}
         <input type="hidden" name="next" value="{% url 'admin_dashboard' %}" />
-        <button class="btn ghost" type="submit">Sync Investment Profits</button>
+        <button class="btn primary" type="submit">Run payout catch-up</button>
       </form>
-      <a class="btn primary" href="{% url 'admin_operations' %}">Open Admin Operations</a>
+    </div>
+  </div>
+
+  <div class="chart-grid admin-insight-grid">
+    <div class="chart-card admin-insight-card">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Operations trend</div>
+          <div class="card-muted">Incoming workload versus resolved items across the last 7 days.</div>
+        </div>
+      </div>
+      <div class="line-chart admin-line-chart">
+        <svg viewBox="0 0 420 220" preserveAspectRatio="none" aria-hidden="true">
+          <path class="line-area admin-line-area incoming" d="{{ trend_incoming_area_path }}"></path>
+          <path class="line-area admin-line-area resolved" d="{{ trend_resolved_area_path }}"></path>
+          <path class="line-path admin-line-path incoming" d="{{ trend_incoming_line_path }}"></path>
+          <path class="line-path admin-line-path resolved" d="{{ trend_resolved_line_path }}"></path>
+        </svg>
+      </div>
+      <div class="chart-legend">
+        <span class="badge info">Incoming {{ trend_incoming_total }}</span>
+        <span class="badge success">Resolved {{ trend_resolved_total }}</span>
+      </div>
+      <div class="trend-axis">
+        {% for day in trend_days %}
+          <span>{{ day }}</span>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="chart-card admin-insight-card">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Queue pressure</div>
+          <div class="card-muted">What needs attention first.</div>
+        </div>
+      </div>
+      <div class="queue-summary-grid">
+        {% for item in queue_insights %}
+          <a class="queue-summary-card" href="{% url item.url %}">
+            <div class="queue-summary-top">
+              <span class="queue-summary-label">{{ item.label }}</span>
+              <span class="badge warning">{{ item.count }}</span>
+            </div>
+            <div class="queue-summary-bar"><span style="width: {{ item.percent }}%;"></span></div>
+            <div class="queue-summary-note">{{ item.note }}</div>
+          </a>
+        {% endfor %}
+      </div>
+      <div class="chart-legend">
+        <span class="badge warning">Review demand</span>
+        <span class="badge warning">Manual action</span>
+        <span class="badge warning">Queue health</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="chart-grid">
+  <div class="section-card chart-card">
+    <div class="section-header">
+      <div>
+        <div class="section-title">Platform signals</div>
+        <div class="card-muted">Core counts rendered as compact control bars.</div>
+      </div>
+    </div>
+    <div class="queue-summary-grid platform-summary-grid">
+      {% for item in platform_insights %}
+        <div class="queue-summary-card no-link">
+          <div class="queue-summary-top">
+            <span class="queue-summary-label">{{ item.label }}</span>
+            <span class="badge info">{{ item.count }}</span>
+          </div>
+          <div class="queue-summary-bar"><span style="width: {{ item.height }}%;"></span></div>
+          <div class="queue-summary-note">Relative platform volume</div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="section-card chart-card">
+    <div class="section-header">
+      <div>
+        <div class="section-title">Recent activity</div>
+        <div class="card-muted">Latest staff actions captured in the audit trail.</div>
+      </div>
+      <div class="section-actions">
+        <a class="btn ghost" href="{% url 'admin_audit_logs' %}">View all</a>
+      </div>
+    </div>
+    <div class="list-stack admin-activity-list">
+      {% for log in recent_audit_logs %}
+        <div class="admin-activity-card">
+          <div class="admin-activity-top">
+            <div class="admin-activity-title">{{ log.action }}</div>
+            <span class="badge info">{{ log.created_at|date:"M d" }}</span>
+          </div>
+          <div class="admin-activity-meta">
+            {% if log.actor %}{{ log.actor.username }}{% else %}System{% endif %} · {{ log.target_type|default:'system' }} #{{ log.target_id|default:'-' }}
+          </div>
+        </div>
+      {% empty %}
+        <div class="empty-state">No audit history yet.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<div class="section-card">
+  <div class="section-header">
+    <div>
+      <div class="section-title">Platform control</div>
+      <div class="card-muted">Operational settings and service state.</div>
+    </div>
+    <div class="section-actions">
+      <a class="btn primary" href="{% url 'admin_site_settings_page' %}">Open Site Settings</a>
+      <a class="btn ghost" href="{% url 'admin_plans' %}">Manage Plans</a>
+    </div>
+  </div>
+
+  <div class="queue-summary-grid platform-summary-grid">
+    <div class="queue-summary-card no-link">
+      <div class="queue-summary-top">
+        <span class="queue-summary-label">Site identity</span>
+        <span class="badge info">Brand</span>
+      </div>
+      <div class="queue-summary-note">{{ site_settings.PROJECT_NAME|default:'Project name not set' }}</div>
+    </div>
+    <div class="queue-summary-card no-link">
+      <div class="queue-summary-top">
+        <span class="queue-summary-label">Payment mode</span>
+        <span class="badge info">{{ payment_config.get_mode_display|default:'Manual Only' }}</span>
+      </div>
+      <div class="queue-summary-note">Deposits {% if payment_config.enable_deposits %}enabled{% else %}disabled{% endif %} · Withdrawals {% if payment_config.enable_withdrawals %}enabled{% else %}disabled{% endif %}</div>
+    </div>
+    <div class="queue-summary-card no-link">
+      <div class="queue-summary-top">
+        <span class="queue-summary-label">Wallet routing</span>
+        <span class="badge info">Wallet</span>
+      </div>
+      <div class="queue-summary-note">Manual deposit wallet {{ site_settings.MANUAL_DEPOSIT_WALLET_ADDRESS|default:'not set' }}</div>
+    </div>
+    <div class="queue-summary-card no-link">
+      <div class="queue-summary-top">
+        <span class="queue-summary-label">Support</span>
+        <span class="badge info">Help</span>
+      </div>
+      <div class="queue-summary-note">{{ site_settings.SUPPORT_EMAIL|default:'No support email set' }}</div>
     </div>
   </div>
 </div>
 {% endblock %}
-

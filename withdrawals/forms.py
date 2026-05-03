@@ -27,7 +27,7 @@ class WithdrawalCreateForm(forms.ModelForm):
             self.fields['wallet'].queryset = wallets
             self.fields['wallet'].empty_label = 'Select wallet'
             self.fields['wallet'].label_from_instance = lambda obj: f"{obj.name} - {obj.get_wallet_type_display()}"
-            balances = {str(w.id): str(w.profit_balance) for w in wallets}
+            balances = {str(w.id): str(w.total_balance) for w in wallets}
             self.fields['wallet'].widget.attrs.update({
                 'data-wallet-balances': json.dumps(balances),
                 'data-balance-target': 'withdrawalWalletBalance',

@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}Site Settings | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
+
+{% block content %}
+<div class="section-card">
+  <div class="section-header">
+    <div>
+      <div class="section-title">Site settings</div>
+      <div class="card-muted">Configure branding, support details, wallet addresses, and payment mode.</div>
+    </div>
+    <div class="section-actions">
+      <a class="btn ghost" href="{% url 'admin_dashboard' %}">Back to dashboard</a>
+    </div>
+  </div>
+
+  <form method="post" action="{% url 'admin_site_settings' %}" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="modal-section compact">
+      <div class="modal-section-title">Brand & support</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Project Name</label>
+          <input type="text" name="project_name" value="{{ site_settings.PROJECT_NAME }}" />
+        </div>
+        <div class="form-group">
+          <label>Site Tagline</label>
+          <input type="text" name="site_tagline" value="{{ site_settings.SITE_TAGLINE }}" />
+        </div>
+        <div class="form-group">
+          <label>Support Email</label>
+          <input type="email" name="support_email" value="{{ site_settings.SUPPORT_EMAIL }}" />
+        </div>
+        <div class="form-group">
+          <label>Support Phone</label>
+          <input type="text" name="support_phone" value="{{ site_settings.SUPPORT_PHONE }}" />
+        </div>
+        <div class="form-group span-2">
+          <label>Support Address</label>
+          <input type="text" name="support_address" value="{{ site_settings.SUPPORT_ADDRESS }}" />
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-section compact">
+      <div class="modal-section-title">Rewards & limits</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Welcome Bonus</label>
+          <input type="text" name="welcome_bonus" value="{{ site_settings.WELCOME_BONUS }}" />
+          <div class="form-help">Credited once into each new user's primary wallet as tradable balance.</div>
+        </div>
+        <div class="form-group">
+          <label>Minimum Withdrawal Amount</label>
+          <input type="text" name="min_withdrawal_amount" value="{{ site_settings.MIN_WITHDRAWAL_AMOUNT }}" />
+          <div class="form-help">Applies globally to every user and every wallet.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-section compact">
+      <div class="modal-section-title">Payments & wallets</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Payment Mode</label>
+          <select name="payment_mode">
+            {% for value, label in payment_mode_choices %}
+              <option value="{{ value }}" {% if payment_config.mode == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="toggle-row">
+            <span class="toggle-label">Accept deposits</span>
+            <input type="checkbox" name="enable_deposits" {% if payment_config.enable_deposits %}checked{% endif %} />
+          </label>
+        </div>
+        <div class="form-group">
+          <label class="toggle-row">
+            <span class="toggle-label">Allow withdrawals</span>
+            <input type="checkbox" name="enable_withdrawals" {% if payment_config.enable_withdrawals %}checked{% endif %} />
+          </label>
+        </div>
+        <div class="form-group">
+          <label>Currency</label>
+          <input type="text" name="currency" value="{{ site_settings.CURRENCY }}" />
+        </div>
+        <div class="form-group">
+          <label>Manual Deposit Wallet</label>
+          <input type="text" name="manual_deposit_wallet_address" value="{{ site_settings.MANUAL_DEPOSIT_WALLET_ADDRESS }}" />
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-section compact">
+      <div class="modal-section-title">Provider config</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Crypto Provider</label>
+          <select name="crypto_provider">
+            {% for value, label in crypto_provider_choices %}
+              <option value="{{ value }}" {% if site_settings.CRYPTO_PROVIDER == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>BlockCypher Token</label>
+          <input type="text" name="blockcypher_token" value="{{ site_settings.BLOCKCYPHER_TOKEN }}" />
+        </div>
+        <div class="form-group">
+          <label>Callback URL</label>
+          <input type="text" name="blockcypher_callback_url" value="{{ site_settings.BLOCKCYPHER_CALLBACK_URL }}" />
+        </div>
+        <div class="form-group">
+          <label>BTC Address</label>
+          <input type="text" name="destination_btc_address" value="{{ site_settings.DESTINATION_BTC_ADDRESS }}" />
+        </div>
+        <div class="form-group">
+          <label>ETH Address</label>
+          <input type="text" name="destination_eth_address" value="{{ site_settings.DESTINATION_ETH_ADDRESS }}" />
+        </div>
+        <div class="form-group">
+          <label>USDT Address</label>
+          <input type="text" name="destination_usdt_address" value="{{ site_settings.DESTINATION_USDT_ADDRESS }}" />
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-section compact">
+      <div class="modal-section-title">Email settings</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Sender Email</label>
+          <input type="email" name="gmail_sender_email" value="{{ site_settings.GMAIL_SENDER_EMAIL }}" />
+        </div>
+        <div class="form-group">
+          <label>Client ID</label>
+          <input type="text" name="gmail_client_id" value="{{ site_settings.GMAIL_CLIENT_ID }}" />
+        </div>
+        <div class="form-group">
+          <label>Client Secret</label>
+          <input type="text" name="gmail_client_secret" value="{{ site_settings.GMAIL_CLIENT_SECRET }}" />
+        </div>
+        <div class="form-group">
+          <label>Refresh Token</label>
+          <input type="text" name="gmail_refresh_token" value="{{ site_settings.GMAIL_REFRESH_TOKEN }}" />
+        </div>
+      </div>
+    </div>
+
+    <div class="section-actions">
+      <button class="btn primary" type="submit">Save Settings</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

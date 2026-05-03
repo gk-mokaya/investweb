@@ -1,0 +1,91 @@
+<div
+  class="chat-widget"
+  data-chat-widget
+  data-chat-start-url="{% url 'support_chat_start' %}"
+  data-chat-messages-base="/chat/conversations/"
+  data-chat-mark-read-base="/chat/conversations/"
+  data-chat-ws-base="/ws/support-chat/"
+  data-chat-storage-key="support-chat-{% if request.user.is_authenticated %}user-{{ request.user.id }}{% else %}guest{% endif %}"
+  data-chat-authenticated="{% if request.user.is_authenticated %}true{% else %}false{% endif %}"
+  data-chat-user-name="{{ request.user.get_full_name|default:request.user.username|default:''|escapejs }}"
+  data-chat-user-email="{{ request.user.email|default:''|escapejs }}"
+  data-chat-placeholder-name="{% if request.user.is_authenticated %}{{ request.user.get_full_name|default:request.user.username|default:'You'|escapejs }}{% else %}Visitor{% endif %}"
+>
+  <button type="button" class="chat-launcher" data-chat-toggle aria-label="Open support chat">
+    <span class="chat-launcher-mark">
+      <svg class="icon"><use href="#icon-message-square"></use></svg>
+    </span>
+    <span class="chat-launcher-copy">
+      <span class="chat-launcher-kicker">Support</span>
+      <strong>Chat with us</strong>
+    </span>
+    <span class="chat-launcher-badge" data-chat-unread>0</span>
+  </button>
+
+  <div class="chat-launcher-banner" data-chat-unread-banner hidden></div>
+
+  <button type="button" class="chat-backdrop" data-chat-backdrop data-chat-toggle aria-label="Close support chat" hidden></button>
+
+  <section class="chat-panel" data-chat-panel hidden>
+    <header class="chat-panel-header">
+      <div class="chat-panel-persona">
+        <div class="chat-panel-avatar">
+          <svg class="icon"><use href="#icon-message-square"></use></svg>
+        </div>
+        <div class="chat-panel-titlewrap">
+          <div class="chat-panel-title">Support Chat</div>
+          <div class="chat-panel-subtitle" data-chat-subtitle>Usually replies in a few minutes</div>
+        </div>
+      </div>
+      <div class="chat-panel-actions">
+        <button type="button" class="chat-close" data-chat-toggle aria-label="Close chat">
+          <svg class="icon sm"><use href="#icon-x"></use></svg>
+        </button>
+      </div>
+    </header>
+
+    <form class="chat-csrf" data-chat-csrf hidden>
+      {% csrf_token %}
+    </form>
+
+    <section class="chat-prechat" data-chat-prechat>
+      <div class="chat-prechat-note">
+        {% if request.user.is_authenticated %}
+          You are chatting as {{ request.user.get_full_name|default:request.user.username|default:'a member' }}.
+        {% else %}
+          Leave your name and email so we can keep the conversation organized.
+        {% endif %}
+      </div>
+      <div class="chat-prechat-grid">
+        <label class="chat-field">
+          <span>Name</span>
+          <input type="text" data-chat-name value="{{ request.user.get_full_name|default:request.user.username|default:'' }}" placeholder="Your name" />
+        </label>
+        <label class="chat-field">
+          <span>Email</span>
+          <input type="email" data-chat-email value="{{ request.user.email|default:'' }}" placeholder="you@example.com" />
+        </label>
+      </div>
+    </section>
+
+    <div class="chat-thread" data-chat-thread>
+      <div class="chat-empty">
+        <strong>Start a new message</strong>
+        <span>We will keep the conversation here.</span>
+      </div>
+    </div>
+
+    <div class="chat-attachment-preview" data-chat-attachment-preview hidden></div>
+
+    <form class="chat-compose" data-chat-compose data-no-page-loader="true">
+      <input type="file" class="chat-file-input" data-chat-attachment accept="image/*" hidden />
+      <button type="button" class="chat-compose-action" data-chat-attach aria-label="Attach image">
+        <svg class="icon sm"><use href="#icon-plus"></use></svg>
+      </button>
+      <textarea data-chat-input rows="1" placeholder="Type a message"></textarea>
+      <button type="submit" class="btn primary chat-send" aria-label="Send message">
+        <svg class="icon sm"><use href="#icon-send"></use></svg>
+      </button>
+    </form>
+  </section>
+</div>

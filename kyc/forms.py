@@ -68,6 +68,8 @@ class KYCForm(forms.ModelForm):
         step = kwargs.pop('step', None)
         super().__init__(*args, **kwargs)
         self.fields['date_of_birth'].widget.attrs.update({'type': 'date', 'class': 'date-input'})
+        self.fields['date_of_birth'].help_text = 'Applicants must be at least 16 years old.'
+        self.fields['phone_number'].help_text = 'Enter a valid phone number for KYC contact and verification.'
         self.fields['source_of_funds'].widget = forms.Select(choices=self.SOURCE_CHOICES)
         required_fields = [
             'full_name',
@@ -119,8 +121,8 @@ class KYCForm(forms.ModelForm):
             return dob
         today = timezone.now().date()
         age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
-        if age < 18:
-            raise forms.ValidationError("You must be at least 18 years old.")
+        if age < 16:
+            raise forms.ValidationError("You must be at least 16 years old to complete KYC.")
         return dob
 
     def clean(self):

@@ -11,6 +11,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <script>
+    (function () {
+      var stored = localStorage.getItem('theme');
+      var prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      var theme = stored === 'light' || stored === 'dark' ? stored : (prefersLight ? 'light' : 'dark');
+      document.documentElement.dataset.theme = theme;
+    })();
+  </script>
   <link rel="stylesheet" href="{% static 'css/app.css' %}" />
 </head>
 <body>
@@ -34,23 +42,23 @@
           </div>
         </div>
         <div class="auth-left-copy">
-          <p>{% block auth_subheading %}Manage deposits, withdrawals, portfolio performance, and account security in one place.{% endblock %}</p>
+          <h1>{% block auth_heading %}Manage your account with confidence{% endblock %}</h1>
+          <p>{% block auth_subheading %}Track balances, funding activity, plan performance, and account security from one place.{% endblock %}</p>
           <div class="auth-left-highlights">
             <div class="auth-left-highlight">
-              <div class="auth-left-highlight-title">Smart Portfolio Tracking</div>
-              <div class="auth-left-highlight-text">Monitor invested capital, live returns, and plan performance in one dashboard.</div>
+              <div class="auth-left-highlight-title">Portfolio visibility</div>
+              <div class="auth-left-highlight-text">Review invested capital, returns, and active plan performance in one dashboard.</div>
             </div>
             <div class="auth-left-highlight">
-              <div class="auth-left-highlight-title">Automated Profit Crediting</div>
-              <div class="auth-left-highlight-text">Scheduled payouts are credited to user wallets automatically based on plan frequency.</div>
+              <div class="auth-left-highlight-title">Scheduled profit posting</div>
+              <div class="auth-left-highlight-text">Planned payouts are credited to wallets according to each plan's schedule.</div>
             </div>
             <div class="auth-left-highlight">
-              <div class="auth-left-highlight-title">Secure Wallet Operations</div>
-              <div class="auth-left-highlight-text">Control deposits, withdrawals, and transfers with transparent balance visibility.</div>
+              <div class="auth-left-highlight-title">Wallet operations</div>
+              <div class="auth-left-highlight-text">Manage deposits, withdrawals, and transfers with clear balance visibility.</div>
             </div>
           </div>
         </div>
-        <div class="auth-left-foot">Secure access. Fast operations. Clear visibility.</div>
       </aside>
       <section class="auth-right">
         <div class="auth-card">
@@ -70,6 +78,8 @@
       </section>
     </div>
   </div>
+  {% include "partials/page_loader.html" %}
+  {% include "partials/chat_widget.html" %}
   <script>
     (function () {
       var qs = new URLSearchParams(window.location.search);
@@ -82,6 +92,7 @@
     })();
   </script>
   <script src="{% static 'js/app.js' %}" defer></script>
+  <script src="{% static 'js/chat.js' %}" defer></script>
   {% block auth_extra_scripts %}{% endblock %}
 </body>
 </html>

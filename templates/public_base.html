@@ -1,0 +1,78 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}{{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}</title>
+  {% if SYSTEM_SETTINGS.SITE_FAVICON %}
+    <link rel="icon" href="{{ SYSTEM_SETTINGS.SITE_FAVICON }}" />
+  {% endif %}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <script>
+    (function () {
+      var stored = localStorage.getItem('theme');
+      var prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      var theme = stored === 'light' || stored === 'dark' ? stored : (prefersLight ? 'light' : 'dark');
+      document.documentElement.dataset.theme = theme;
+    })();
+  </script>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}" />
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="public-body">
+  {% include "partials/icons.html" %}
+  <div class="public-shell">
+    <header class="public-header public-header-stacked">
+      <a class="public-brand" href="{% url 'home' %}">
+        <span class="public-brand-mark">
+          {% if SYSTEM_SETTINGS.SITE_LOGO %}
+            <img src="{{ SYSTEM_SETTINGS.SITE_LOGO }}" alt="{{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}" />
+          {% else %}
+            <svg class="icon"><use href="#icon-layers"></use></svg>
+          {% endif %}
+        </span>
+        <span class="public-brand-copy">
+          <strong>{{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}</strong>
+          <span>{{ SYSTEM_SETTINGS.SITE_TAGLINE|default:'Investment Suite' }}</span>
+        </span>
+      </a>
+      {% include "partials/theme_toggle.html" %}
+      <div class="public-actions">
+        <a class="btn ghost" href="{% url 'plans' %}">Plans</a>
+        <a class="btn ghost" href="{% url 'login' %}">Login</a>
+        <a class="btn primary" href="{% url 'register' %}">Register</a>
+      </div>
+    </header>
+    <main class="public-main">
+      {% include "partials/alerts.html" %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+  {% include "partials/page_loader.html" %}
+  {% include "partials/chat_widget.html" %}
+  <div class="sweet-alert-backdrop" id="confirmBackdrop" aria-hidden="true">
+    <div class="sweet-alert" id="confirmDialog" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmMessage">
+      <div class="sweet-alert-icon">
+        <svg class="icon"><use href="#icon-shield"></use></svg>
+      </div>
+      <div class="sweet-alert-content">
+        <div class="sweet-alert-title" id="confirmTitle">Confirm Action</div>
+        <div class="sweet-alert-message" id="confirmMessage">Please confirm this action.</div>
+        <div class="confirm-progress" data-confirm-progress>
+          <span data-confirm-progress-bar></span>
+        </div>
+      </div>
+      <div class="sweet-alert-actions">
+        <button class="btn ghost" type="button" data-confirm-cancel>Cancel</button>
+        <button class="btn primary" type="button" data-confirm-accept>Confirm</button>
+      </div>
+    </div>
+  </div>
+  <script src="{% static 'js/app.js' %}" defer></script>
+  <script src="{% static 'js/chat.js' %}" defer></script>
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>

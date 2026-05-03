@@ -9,7 +9,6 @@ class CreateInvestmentForm(forms.Form):
     plan = forms.ModelChoiceField(queryset=InvestmentPlan.objects.none())
     wallet = forms.ModelChoiceField(queryset=Wallet.objects.none())
     amount = forms.DecimalField(min_value=1, decimal_places=2, max_digits=12)
-    auto_reinvest = forms.BooleanField(required=False)
     risk_acknowledged = forms.BooleanField(required=False)
 
     def __init__(self, *args, user=None, **kwargs):
