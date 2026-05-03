@@ -4,6 +4,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 
 from accounts.models import UserProfile
+from accounts.security import build_browser_fingerprint
 from settingsconfig.utils import get_setting, get_setting_decimal
 from adminpanel.utils import log_action
 from accounts.models import LoginLog
@@ -41,6 +42,9 @@ def log_login(sender, request, user, **kwargs):
     ip = request.META.get('REMOTE_ADDR', '')
     user_agent = request.META.get('HTTP_USER_AGENT', '')[:200]
     last_log = LoginLog.objects.filter(user=user).order_by('-created_at').first()
+    if request is not None:
+        request.session['browser_fingerprint'] = build_browser_fingerprint(request)
+        request.session.modified = True
     LoginLog.objects.create(user=user, ip_address=ip, user_agent=user_agent)
     log_action(user, 'login', 'user', user.id, {'ip': ip})
     if last_log and last_log.ip_address and last_log.ip_address != ip:
