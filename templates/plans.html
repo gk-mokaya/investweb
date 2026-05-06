@@ -4,28 +4,34 @@
 {% block title %}Plans | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
 
 {% block content %}
-<div class="section-card">
+<div class="section-card plans-section-card">
   <div class="section-header">
     <div>
       <div class="section-title">Investment Plans</div>
-      <div class="card-muted">Compare live plans, review the return profile, and open an account when you are ready.</div>
+      {% if is_authenticated_user %}
+        <div class="card-muted">Review live plans from your account and invest directly from your wallet.</div>
+      {% else %}
+        <div class="card-muted">Compare live plans, review the return profile, and open an account when you are ready.</div>
+      {% endif %}
     </div>
     <div class="section-actions">
       {% if request.user.is_staff %}
         <button class="btn ghost" data-modal-open="#planModal" type="button">Add Plan</button>
       {% endif %}
-      {% if can_invest %}
+      {% if is_authenticated_user %}
         <button class="btn primary" data-modal-open="#investmentModal" type="button">New Investment</button>
+        <a class="btn ghost" href="{% url 'dashboard' %}">Dashboard</a>
       {% else %}
         <a class="btn primary" href="{% url 'register' %}">Create account</a>
       {% endif %}
     </div>
   </div>
 
-  {% if not can_invest %}
+  {% if not is_authenticated_user %}
     <div class="public-plan-banner">
-      <div>
-        <strong>Preview mode</strong>
+      <div class="public-plan-banner-copy">
+        <div class="public-plan-banner-label">Preview mode</div>
+        <strong>Explore the live plans without signing in.</strong>
         <div class="card-muted">You can view every live plan without signing in. Create an account to receive the welcome bonus and start investing.</div>
       </div>
       <div class="banner-pill">{{ SYSTEM_SETTINGS.WELCOME_BONUS|default:'50' }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }} welcome bonus</div>

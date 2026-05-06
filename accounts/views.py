@@ -27,6 +27,11 @@ class RegisterView(FormView):
     form_class = RegisterForm
     success_url = reverse_lazy('profile')
 
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            return redirect('dashboard')
+        return super().dispatch(request, *args, **kwargs)
+
     def form_valid(self, form):
         user = form.save()
         login(self.request, user)
@@ -36,6 +41,7 @@ class RegisterView(FormView):
 class UserLoginView(LoginView):
     template_name = 'auth_login.html'
     form_class = EmailAuthenticationForm
+    redirect_authenticated_user = True
 
 
 class UserLogoutView(LogoutView):

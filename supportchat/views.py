@@ -127,7 +127,13 @@ class ChatMessagesView(View):
             return True
         if request.user.is_authenticated and conversation.user_id == request.user.id:
             return True
-        token = request.GET.get('token') or request.session.get('support_chat_token')
+        token = (
+            request.GET.get('token')
+            or request.GET.get('conversation_token')
+            or request.POST.get('token')
+            or request.POST.get('conversation_token')
+            or request.session.get('support_chat_token')
+        )
         return token and token == str(conversation.public_token)
 
 
@@ -151,7 +157,7 @@ class ChatMarkReadView(View):
             return True
         if request.user.is_authenticated and conversation.user_id == request.user.id:
             return True
-        token = request.POST.get('token') or request.session.get('support_chat_token')
+        token = request.POST.get('token') or request.POST.get('conversation_token') or request.session.get('support_chat_token')
         return token and token == str(conversation.public_token)
 
 

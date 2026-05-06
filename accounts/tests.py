@@ -1,9 +1,13 @@
 from decimal import Decimal
 
 from django.contrib.auth.models import User
-from django.test import TestCase
+from django.contrib.sessions.middleware import SessionMiddleware
+from django.http import HttpResponse
+from django.test import RequestFactory, TestCase
+from django.urls import reverse
 
 from accounts.models import Notification
+from accounts.middleware import BrowserFingerprintMiddleware
 from settingsconfig.models import SystemSetting
 from kyc.models import KYCProfile
 from wallets.models import Wallet
@@ -50,3 +54,78 @@ class WelcomeBonusSignalTests(TestCase):
         self.assertEqual(profile.phone_number, '+254700111222')
         self.assertEqual(profile.country_of_residence, 'Kenya')
         self.assertEqual(profile.full_name, 'Brian Stone')
+
+
+class AuthRedirectTests(TestCase):
+    def test_authenticated_users_are_redirected_away_from_login(self):
+        user = User.objects.create_user(
+            username='stafflogin',
+            email='stafflogin@example.com',
+            password='pass12345',
+            is_staff=True,
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse('login'))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('dashboard'))
+
+    def test_authenticated_users_are_redirected_away_from_register(self):
+        user = User.objects.create_user(
+            username='staffregister',
+            email='staffregister@example.com',
+            password='pass12345',
+            is_staff=True,
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse('register'))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('dashboard'))
+
+
+class BrowserFingerprintMiddlewareTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='fingerprint', email='fingerprint@example.com', password='pass12345')
+        self.factory = RequestFactory()
+
+    def _attach_session(self, request):
+        middleware = SessionMiddleware(lambda req: HttpResponse())
+        middleware.process_request(request)
+        request.session.save()
+        return request
+
+    def test_header_drift_does_not_log_user_out(self):
+        middleware = BrowserFingerprintMiddleware(lambda req: HttpResponse('ok'))
+
+        request1 = self.factory.get(
+            '/dashboard/',
+            HTTP_ACCEPT='text/html,application/xhtml+xml,application/xml;q=0.9',
+            HTTP_ACCEPT_LANGUAGE='en-US,en;q=0.9',
+            HTTP_ACCEPT_ENCODING='gzip, deflate, br',
+            HTTP_USER_AGENT='Mozilla/5.0',
+        )
+        self._attach_session(request1)
+        request1.user = self.user
+
+        response1 = middleware(request1)
+        self.assertEqual(response1.status_code, 200)
+        first_fingerprint = request1.session.get('browser_fingerprint')
+        self.assertTrue(first_fingerprint)
+
+        request2 = self.factory.get(
+            '/plans/',
+            HTTP_ACCEPT='text/html,application/xhtml+xml',
+            HTTP_ACCEPT_LANGUAGE='en-US,en;q=0.9',
+            HTTP_ACCEPT_ENCODING='gzip, deflate, br',
+            HTTP_USER_AGENT='Mozilla/5.0',
+        )
+        request2.session = request1.session
+        request2.user = self.user
+
+        response2 = middleware(request2)
+        self.assertEqual(response2.status_code, 200)
+        self.assertTrue(request2.user.is_authenticated)
+        self.assertTrue(request2.session.get('browser_fingerprint'))

@@ -151,14 +151,11 @@ body.chat-modal-open {
 .page-loader-backdrop {
   position: fixed;
   inset: 0;
-  background:
-    radial-gradient(circle at top, rgba(77, 179, 255, 0.16), transparent 30%),
-    rgba(6, 10, 20, 0.72);
-  backdrop-filter: blur(10px);
+  background: rgba(6, 10, 20, 0.62);
+  backdrop-filter: blur(8px);
   display: none;
   align-items: center;
   justify-content: center;
-  padding: 20px;
   z-index: 1900;
 }
 
@@ -166,64 +163,48 @@ body.chat-modal-open {
   display: flex;
 }
 
-.page-loader {
-  min-width: min(360px, 92vw);
-  padding: 18px 20px;
-  border-radius: 20px;
-  border: 1px solid var(--line);
-  background: linear-gradient(180deg, var(--panel) 0%, var(--panel-3) 100%);
-  box-shadow: var(--shadow);
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.page-loader-orb {
-  width: 48px;
-  height: 48px;
-  border: 0;
-  background: transparent;
-  display: block;
+.page-loader-spinner {
   position: relative;
-  overflow: visible;
-  color: var(--primary);
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  filter: drop-shadow(0 0 12px rgba(77, 179, 255, 0.22));
 }
 
-.page-loader-orb span {
+.page-loader-spinner::before,
+.page-loader-spinner::after {
+  content: "";
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  transform: rotateX(70deg);
-  animation: pageLoaderSpin 1s linear infinite;
-  box-shadow: .2em 0 0 0 currentColor;
+  border: 3px solid transparent;
+  border-top-color: var(--primary);
+  border-right-color: rgba(77, 179, 255, 0.35);
+  border-left-color: rgba(57, 217, 138, 0.18);
+  box-shadow:
+    0 0 0 1px rgba(77, 179, 255, 0.12) inset,
+    0 0 18px rgba(77, 179, 255, 0.22);
+  animation: pageLoaderSpin 0.95s linear infinite;
 }
 
-.page-loader-orb span:nth-child(2) {
-  color: var(--success);
-  transform: rotateY(70deg);
-  animation-delay: .4s;
+.page-loader-spinner::before {
+  inset: 0;
+  border-width: 4px;
+  border-top-color: rgba(77, 179, 255, 0.95);
+  border-right-color: rgba(77, 179, 255, 0.08);
+  border-bottom-color: rgba(57, 217, 138, 0.85);
   opacity: 0.95;
 }
 
-.page-loader-orb span:nth-child(3) {
-  display: none;
-}
-
-.page-loader-text {
-  display: grid;
-  gap: 4px;
-}
-
-.page-loader-text strong {
-  font-size: 15px;
-  font-family: "Space Grotesk", "Segoe UI", sans-serif;
-  letter-spacing: -0.02em;
-}
-
-.page-loader-text span {
-  font-size: 12px;
-  color: var(--muted);
-  line-height: 1.45;
+.page-loader-spinner::after {
+  inset: 11px;
+  border-width: 3px;
+  border-top-color: rgba(57, 217, 138, 0.95);
+  border-right-color: rgba(57, 217, 138, 0.08);
+  border-bottom-color: rgba(77, 179, 255, 0.82);
+  animation-direction: reverse;
+  animation-duration: 1.1s;
+  opacity: 0.92;
 }
 
 body.page-loading {
@@ -1159,6 +1140,17 @@ img {
   padding: 14px;
 }
 
+.plans-section-card {
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  background:
+    radial-gradient(circle at top left, rgba(77, 179, 255, 0.08), transparent 26%),
+    radial-gradient(circle at bottom right, rgba(57, 217, 138, 0.05), transparent 28%),
+    linear-gradient(180deg, var(--panel-2) 0%, var(--panel-3) 100%);
+}
+
 .section-header {
   display: flex;
   align-items: center;
@@ -1188,6 +1180,78 @@ img {
 
 .section-header > div:first-child .card-muted {
   margin-top: 0;
+}
+
+.plans-section-card .section-header {
+  margin-bottom: 0;
+  align-items: flex-start;
+}
+
+.plans-section-card .section-header > div:first-child {
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.plans-section-card .section-title {
+  font-size: 18px;
+  letter-spacing: -0.02em;
+}
+
+.plans-section-card .card-muted {
+  max-width: 72ch;
+  line-height: 1.6;
+}
+
+.plans-section-card .section-actions {
+  flex-wrap: wrap;
+}
+
+.public-plan-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  border: 1px solid rgba(77, 179, 255, 0.2);
+  box-shadow: 0 16px 36px rgba(9, 18, 34, 0.12);
+}
+
+.public-plan-banner-copy {
+  display: grid;
+  gap: 4px;
+  max-width: 72ch;
+}
+
+.public-plan-banner-label {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(77, 179, 255, 0.1);
+  border: 1px solid rgba(77, 179, 255, 0.18);
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.public-plan-banner strong {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.plans-section-card .plan-grid {
+  gap: 18px;
+}
+
+.plans-section-card .plan-card {
+  padding: 20px;
+  gap: 16px;
+  min-height: 272px;
 }
 
 .deposits-title-line {
@@ -1347,6 +1411,95 @@ img {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.withdrawal-form-grid {
+  gap: 10px;
+}
+
+.withdrawal-form-grid .form-group {
+  gap: 5px;
+}
+
+.deposit-form-grid {
+  gap: 10px;
+}
+
+.deposit-form-grid .form-group {
+  gap: 5px;
+}
+
+.withdrawal-wallet-panel {
+  gap: 5px;
+}
+
+.deposit-wallet-panel {
+  gap: 5px;
+}
+
+.withdrawal-wallet-panel .wallet-info-panel {
+  padding: 6px 8px;
+  gap: 6px;
+}
+
+.withdrawal-wallet-panel .wallet-info-panel.one-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 0;
+  min-height: 34px;
+  white-space: nowrap;
+}
+
+.withdrawal-wallet-panel .wallet-info-panel.one-row.slim {
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+.withdrawal-wallet-panel .wallet-info-panel.one-row .wallet-info-value {
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.withdrawal-wallet-panel .wallet-info-panel.one-row .wallet-balance-amount {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  min-width: 0;
+}
+
+.withdrawal-wallet-panel .wallet-info-panel.one-row .wallet-info-label {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1.25;
+  opacity: 0.8;
+  flex-shrink: 0;
+}
+
+.withdrawal-wallet-panel .wallet-info-panel.one-row .wallet-info-badge {
+  flex-shrink: 0;
+  padding: 3px 8px;
+  font-size: 10px;
+  justify-self: end;
+}
+
+.deposit-wallet-panel input {
+  min-height: 34px;
+  padding: 8px 10px;
+}
+
+@media (max-width: 768px) {
+  .withdrawal-wallet-panel .wallet-info-panel.one-row {
+    column-gap: 6px;
+    min-height: 32px;
+  }
 }
 
 label {
@@ -1957,6 +2110,58 @@ input[type="checkbox"]:checked::after {
     radial-gradient(circle at top right, var(--deposit-surface), transparent 36%),
     linear-gradient(145deg, var(--deposit-surface-2), var(--deposit-surface-3));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.withdrawal-guide {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(77, 179, 255, 0.18);
+  background:
+    radial-gradient(circle at top right, rgba(77, 179, 255, 0.1), transparent 36%),
+    linear-gradient(145deg, rgba(18, 31, 58, 0.92), rgba(12, 20, 41, 0.92));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.withdrawal-guide-title {
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.35;
+  color: var(--text);
+}
+
+.withdrawal-guide-text {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.withdrawal-guide-steps {
+  margin: 2px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 5px;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.withdrawal-guide-steps li {
+  margin: 0;
+  padding: 0;
+}
+
+.withdrawal-guide-note {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(77, 179, 255, 0.16);
+  background: rgba(77, 179, 255, 0.08);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .deposit-guide-title {
@@ -4648,6 +4853,32 @@ html[data-theme="light"] {
 
 .public-plan-card {
   padding: 16px;
+}
+
+html[data-theme="light"] .public-plan-banner {
+  box-shadow: 0 18px 40px rgba(26, 44, 82, 0.1);
+}
+
+@media (max-width: 720px) {
+  .plans-section-card {
+    padding: 16px;
+    gap: 14px;
+  }
+
+  .plans-section-card .section-title {
+    font-size: 16px;
+  }
+
+  .public-plan-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 16px;
+  }
+
+  .plans-section-card .plan-card {
+    padding: 18px;
+    min-height: 0;
+  }
 }
 
 .public-plan-top {
@@ -7738,7 +7969,7 @@ html[data-theme="light"] .support-chat-shell {
 
 .chat-widget[data-chat-authenticated="false"] .chat-prechat {
   margin: 6px 6px 0;
-  padding: 8px 10px 7px;
+  padding: 10px 12px 10px;
   border: 1px solid var(--chat-border);
   border-radius: 14px;
   background:
@@ -7764,15 +7995,41 @@ html[data-theme="light"] .support-chat-shell {
 
 .chat-widget[data-chat-authenticated="false"] .chat-prechat-note {
   color: var(--chat-text);
-  font-size: 11px;
-  line-height: 1.25;
-  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.35;
+  margin-top: 6px;
 }
 
 .chat-widget[data-chat-authenticated="false"] .chat-prechat-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
   margin-top: 6px;
+}
+
+.chat-widget[data-chat-authenticated="false"] .chat-prechat-tip {
+  margin-top: 8px;
+  color: var(--chat-muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.chat-widget[data-chat-authenticated="false"] .chat-field small {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--chat-muted);
+}
+
+.chat-widget[data-chat-authenticated="false"] .chat-prechat-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.chat-widget[data-chat-authenticated="false"] .chat-prechat-submit {
+  min-height: 36px;
+  padding-inline: 14px;
+  border-radius: 12px;
+  font-size: 12px;
 }
 
 .chat-widget[data-chat-authenticated="false"] .chat-field input {
@@ -7909,9 +8166,9 @@ html[data-theme="light"] .support-chat-thread-card {
 }
 
 .support-chat-thread-card .chat-bubble {
-  border-color: rgba(120, 138, 168, 0.22);
-  box-shadow: 0 12px 28px rgba(8, 16, 30, 0.12);
-  background: linear-gradient(180deg, var(--support-chat-surface-2), var(--support-chat-surface));
+  border-color: rgba(129, 153, 183, 0.22);
+  box-shadow: 0 16px 34px rgba(5, 10, 22, 0.22);
+  background: linear-gradient(180deg, rgba(23, 33, 49, 0.98), rgba(15, 23, 36, 0.98));
 }
 
 .support-chat-thread-card .chat-bubble + .chat-bubble {
@@ -7919,21 +8176,21 @@ html[data-theme="light"] .support-chat-thread-card {
 }
 
 .support-chat-thread-card .chat-bubble.incoming {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(245, 249, 255, 0.92));
-  border-color: rgba(113, 132, 160, 0.24);
+  background: linear-gradient(180deg, rgba(28, 40, 58, 0.98), rgba(18, 27, 42, 0.98));
+  border-color: rgba(122, 145, 172, 0.22);
 }
 
 .support-chat-thread-card .chat-bubble.outgoing {
-  background: linear-gradient(180deg, rgba(77, 179, 255, 0.22), rgba(77, 179, 255, 0.12));
-  border-color: rgba(77, 179, 255, 0.26);
+  background: linear-gradient(180deg, rgba(77, 179, 255, 0.34), rgba(37, 211, 102, 0.18));
+  border-color: rgba(77, 179, 255, 0.34);
 }
 
 .support-chat-thread-card .chat-bubble-meta strong {
-  color: var(--support-chat-text);
+  color: #f6fbff;
 }
 
 .support-chat-thread-card .chat-bubble-text {
-  color: var(--support-chat-text);
+  color: #edf6ff;
 }
 
 html[data-theme="light"] .support-chat-shell,
@@ -8042,9 +8299,9 @@ html[data-theme="light"] .support-chat-thread-card .chat-bubble.outgoing .chat-b
   align-content: start;
   justify-items: start;
   border-radius: 16px 16px 16px 6px;
-  border: 1px solid rgba(120, 138, 168, 0.22);
-  background: linear-gradient(180deg, var(--support-chat-surface-2), var(--support-chat-surface));
-  box-shadow: 0 12px 28px rgba(8, 16, 30, 0.12);
+  border: 1px solid rgba(129, 153, 183, 0.22);
+  background: linear-gradient(180deg, rgba(23, 33, 49, 0.98), rgba(15, 23, 36, 0.98));
+  box-shadow: 0 16px 34px rgba(5, 10, 22, 0.22);
 }
 
 .chat-widget .chat-bubble + .chat-bubble,
@@ -8054,15 +8311,15 @@ html[data-theme="light"] .support-chat-thread-card .chat-bubble.outgoing .chat-b
 
 .chat-widget .chat-bubble.incoming,
 .support-chat-thread-card .chat-bubble.incoming {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(245, 249, 255, 0.92));
-  border-color: rgba(113, 132, 160, 0.24);
+  background: linear-gradient(180deg, rgba(28, 40, 58, 0.98), rgba(18, 27, 42, 0.98));
+  border-color: rgba(122, 145, 172, 0.22);
 }
 
 .chat-widget .chat-bubble.outgoing,
 .support-chat-thread-card .chat-bubble.outgoing {
   justify-self: end;
   border-radius: 18px 18px 6px 18px;
-  background: linear-gradient(180deg, rgba(77, 179, 255, 0.26), rgba(77, 179, 255, 0.14));
+  background: linear-gradient(180deg, rgba(77, 179, 255, 0.34), rgba(37, 211, 102, 0.18));
   border-color: rgba(77, 179, 255, 0.34);
 }
 
@@ -8081,14 +8338,14 @@ html[data-theme="light"] .support-chat-thread-card .chat-bubble.outgoing .chat-b
 .chat-widget .chat-bubble-text,
 .support-chat-thread-card .chat-bubble-meta strong,
 .support-chat-thread-card .chat-bubble-text {
-  color: #091222;
+  color: #edf6ff;
 }
 
 .chat-widget .chat-bubble.outgoing .chat-bubble-meta strong,
 .chat-widget .chat-bubble.outgoing .chat-bubble-text,
 .support-chat-thread-card .chat-bubble.outgoing .chat-bubble-meta strong,
 .support-chat-thread-card .chat-bubble.outgoing .chat-bubble-text {
-  color: #061427;
+  color: #ffffff;
 }
 
 .chat-widget .chat-bubble-text,

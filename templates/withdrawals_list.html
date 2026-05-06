@@ -136,14 +136,6 @@
           <div class="info-chip-label">Wallet address</div>
           <div class="info-chip-value">{{ withdrawal.wallet_address }}</div>
         </div>
-        <div class="info-chip">
-          <div class="info-chip-label">Destination network</div>
-          <div class="info-chip-value">{{ withdrawal.destination_network|default:'-' }}</div>
-        </div>
-        <div class="info-chip">
-          <div class="info-chip-label">Memo tag</div>
-          <div class="info-chip-value">{{ withdrawal.memo_tag|default:'-' }}</div>
-        </div>
       </div>
     </div>
       <div class="modal-footer">
@@ -163,17 +155,21 @@
     <form method="post" action="{% url 'withdrawal_create' %}">
       {% csrf_token %}
       <div class="modal-body">
+        <div class="withdrawal-guide">
+          <div class="withdrawal-guide-title">Withdrawal process</div>
+          <ol class="withdrawal-guide-steps">
+            <li>Submit the withdrawal request with your wallet, amount, and payout address.</li>
+            <li>We verify the request against your balance and Profile status.</li>
+            <li>Approved requests are released to your payout address after processing.</li>
+            <li>Funds usually reflect within 2 hours after you submit the request.</li>
+          </ol>
+          <div class="withdrawal-guide-note">
+            If additional verification is needed, we will update you in-app before release.
+          </div>
+        </div>
         {% if not kyc_verified %}
           <div class="alert warning">
             <div>Verification is required before you can request a withdrawal.</div>
-          </div>
-        {% endif %}
-        {% if payment_config and payment_config.enable_withdrawals %}
-          <div class="alert info" data-method-only="manual">
-            <div>Manual withdrawals are processed by the admin team after approval.</div>
-          </div>
-          <div class="alert info" data-method-only="automated">
-            <div>Automated withdrawals are released after approval.</div>
           </div>
         {% endif %}
         {% if create_form.non_field_errors %}
@@ -183,30 +179,21 @@
             {% endfor %}
           </div>
         {% endif %}
-        <div class="form-grid">
+        <div class="form-grid compact withdrawal-form-grid">
           {% include "partials/form_field.html" with field=create_form.wallet %}
-          <div class="form-group">
+          <div class="form-group withdrawal-wallet-panel">
             <label>Wallet balance</label>
-            <div class="wallet-info-panel" id="withdrawalWalletBalance">
-              <div class="wallet-info-row">
-                <span class="wallet-info-label">Selected wallet</span>
-                <span class="wallet-info-value" data-wallet-selected-name>Choose a wallet</span>
-              </div>
-              <div class="wallet-info-row">
-                <span class="wallet-info-label">Total balance</span>
-                <span class="wallet-info-value" data-wallet-balance-help>Select a wallet to see balance.</span>
-              </div>
-              <div class="wallet-info-foot">
-                <span class="badge info" data-wallet-balance-status style="display:none;"></span>
-              </div>
+            <div class="wallet-info-panel compact one-row slim" id="withdrawalWalletBalance">
+              <span class="wallet-info-label">Balance</span>
+              <span class="wallet-info-value wallet-balance-amount" data-wallet-balance-help>Select a wallet to see balance.</span>
+              <span class="badge info wallet-info-badge" data-wallet-balance-status style="display:none;"></span>
             </div>
           </div>
           {% include "partials/form_field.html" with field=create_form.crypto %}
-          {% include "partials/form_field.html" with field=create_form.method %}
           {% include "partials/form_field.html" with field=create_form.amount %}
-          {% include "partials/form_field.html" with field=create_form.wallet_address %}
-          {% include "partials/form_field.html" with field=create_form.destination_network %}
-          {% include "partials/form_field.html" with field=create_form.memo_tag %}
+          <div class="span-2">
+            {% include "partials/form_field.html" with field=create_form.wallet_address %}
+          </div>
         </div>
       </div>
       <div class="modal-footer">

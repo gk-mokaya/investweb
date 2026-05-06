@@ -144,10 +144,33 @@ class PublicMarketingPagesTests(TestCase):
         response = self.client.get(reverse('home'))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Starter Growth')
+        self.assertContains(response, 'How it works')
 
     def test_public_plans_page_is_accessible(self):
         response = self.client.get(reverse('plans'))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Starter Growth')
+
+    def test_authenticated_user_can_still_open_public_plans_page(self):
+        user = User.objects.create_user(username='publicuser', email='public@example.com', password='pass12345')
+        self.client.force_login(user)
+
+        response = self.client.get(reverse('plans'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'Preview mode')
+        self.assertContains(response, 'New Investment')
+        self.assertContains(response, 'Dashboard')
+
+    def test_authenticated_verified_user_can_open_investments_page(self):
+        user = User.objects.create_user(username='investor', email='investor@example.com', password='pass12345')
+        from kyc.models import KYCProfile
+
+        KYCProfile.objects.filter(user=user).update(status='verified')
+        self.client.force_login(user)
+
+        response = self.client.get(reverse('my_investments'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Investment history')

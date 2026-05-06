@@ -268,6 +268,11 @@ class PlanListView(ListView):
     def _base_template(self):
         return 'base.html' if self.request.user.is_authenticated else 'public_base.html'
 
+    def get_template_names(self):
+        if self.request.user.is_authenticated:
+            return ['plans.html']
+        return ['plans.html']
+
     def get_queryset(self):
         return InvestmentPlan.objects.filter(is_active=True).order_by('min_amount')
 
@@ -276,6 +281,7 @@ class PlanListView(ListView):
         context['base_template'] = self._base_template()
         context['plan_form'] = InvestmentPlanForm()
         context['can_invest'] = self.request.user.is_authenticated
+        context['is_authenticated_user'] = self.request.user.is_authenticated
         context['create_form'] = CreateInvestmentForm(user=self.request.user) if self.request.user.is_authenticated else None
         context['open_plan_modal'] = False
         context['open_investment_modal'] = False

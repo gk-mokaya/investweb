@@ -148,6 +148,7 @@
     var badge = widget.querySelector('[data-chat-unread]');
     var unreadBanner = widget.querySelector('[data-chat-unread-banner]');
     var prechat = widget.querySelector('[data-chat-prechat]');
+    var prechatForm = widget.querySelector('[data-chat-prechat-form]');
     var nameInput = widget.querySelector('[data-chat-name]');
     var emailInput = widget.querySelector('[data-chat-email]');
     var subtitle = widget.querySelector('[data-chat-subtitle]');
@@ -170,6 +171,8 @@
     var backdrop = widget.querySelector('[data-chat-backdrop]');
     var currentAttachment = null;
     var currentAttachmentUrl = '';
+    var guestReady = authenticated ? true : false;
+    var conversationToken = '';
 
     function isMobileChatMode() {
       return window.matchMedia && window.matchMedia('(max-width: 720px)').matches;
@@ -187,6 +190,8 @@
 
     function persistConversation(data) {
       conversation = data;
+      conversationToken = data && data.conversation && data.conversation.token ? data.conversation.token : conversationToken;
+      widget.setAttribute('data-chat-conversation-token', conversationToken || '');
       try {
         localStorage.setItem(storageKey, JSON.stringify(data));
       } catch (error) {}
@@ -199,11 +204,25 @@
 
     function clearConversation() {
       conversation = null;
+      conversationToken = '';
+      widget.removeAttribute('data-chat-conversation-token');
       try {
         localStorage.removeItem(storageKey);
       } catch (error) {}
       setBadge(badge, 0);
       setUnreadBanner(0);
+    }
+
+    function setConversationViewState(ready) {
+      guestReady = !!ready || authenticated;
+      if (prechat) {
+        prechat.hidden = authenticated ? true : !guestReady;
+        prechat.style.display = authenticated ? 'none' : (guestReady ? 'none' : '');
+      }
+      if (thread) thread.hidden = !guestReady;
+      if (composeForm) composeForm.hidden = !guestReady;
+      if (attachmentPreview) attachmentPreview.hidden = !guestReady;
+      widget.classList.toggle('chat-is-ready', guestReady);
     }
 
     function closeSocket() {
@@ -362,8 +381,10 @@
       }
       var payload = new FormData();
       payload.set('content', content || '');
-      if (conversation.conversation.token) {
-        payload.set('token', conversation.conversation.token);
+      if (conversationToken || (conversation.conversation && conversation.conversation.token)) {
+        var token = conversationToken || conversation.conversation.token;
+        payload.set('token', token);
+        payload.set('conversation_token', token);
       }
       if (attachment) {
         payload.set('attachment', attachment);
@@ -391,10 +412,10 @@
       renderMessages(thread, data.messages || [], 'client');
       unreadCount = Number(data.conversation.unread_client_count || 0);
       if (subtitle) {
-        subtitle.textContent = data.conversation.display_name ? ('Conversation with ' + data.conversation.display_name) : 'Send a message and our team will reply here.';
+        subtitle.textContent = data.conversation.display_name ? ('Conversation with ' + data.conversation.display_name) : (authenticated ? 'Send a message and our team will reply here.' : 'Guest chat ready. Add your details if you want a follow-up.');
       }
       if (prechat) {
-        prechat.style.display = authenticated ? 'none' : '';
+        setConversationViewState(true);
       }
       if (shouldConnect !== false) {
         connectSocket(data.conversation.id, data.conversation.token);
@@ -410,8 +431,9 @@
 
     function startConversation() {
       var payload = new URLSearchParams();
-      var token = conversation && conversation.conversation ? conversation.conversation.token : '';
+      var token = conversationToken || (conversation && conversation.conversation ? conversation.conversation.token : '');
       if (token) payload.set('token', token);
+      if (token) payload.set('conversation_token', token);
       if (!authenticated) {
         payload.set('guest_name', (nameInput && nameInput.value || '').trim());
         payload.set('guest_email', (emailInput && emailInput.value || '').trim());
@@ -449,6 +471,7 @@
       startConversation().then(function (data) {
         if (!data.ok) return;
         loadConversation(data);
+        conversationToken = (data.conversation && data.conversation.token) || conversationToken;
         if (attachmentFile || forceHttp) {
           postMessageViaHttp(message, attachmentFile);
           return;
@@ -474,6 +497,7 @@
       }
       if (backdrop) backdrop.hidden = false;
       if (conversation && conversation.conversation) {
+        setConversationViewState(true);
         unreadCount = 0;
         setBadge(badge, 0);
         setUnreadBanner(0);
@@ -484,8 +508,8 @@
           }
         }
         fetchConversationMessages();
-      } else if (!authenticated && prechat) {
-        prechat.style.display = '';
+      } else if (!authenticated) {
+        setConversationViewState(false);
       }
       if (!conversation && authenticated && !socket) {
         startConversation().then(function (data) {
@@ -528,10 +552,6 @@
         event.preventDefault();
         var message = (input && input.value || '').trim();
         if (!message && !currentAttachment) return;
-        if (!authenticated && (!nameInput || !nameInput.value.trim()) && (!emailInput || !emailInput.value.trim())) {
-          if (subtitle) subtitle.textContent = 'Please add your name or email before sending a message.';
-          return;
-        }
         input.value = '';
         if (currentAttachment) {
           ensureConversationAndSend(message, currentAttachment, true);
@@ -541,6 +561,27 @@
           ensureConversationAndSend(message);
         }
         if (panel) panel.hidden = false;
+      });
+    }
+
+    if (prechatForm && !authenticated) {
+      prechatForm.addEventListener('submit', function (event) {
+        event.preventDefault();
+        var guestName = (nameInput && nameInput.value || '').trim();
+        var guestEmail = (emailInput && emailInput.value || '').trim();
+        if (!guestName || !guestEmail) {
+          if (subtitle) subtitle.textContent = 'Please enter your name and email to start the chat.';
+          return;
+        }
+        startConversation().then(function (data) {
+          if (!data.ok) return;
+          loadConversation(data);
+          setConversationViewState(true);
+          if (subtitle) {
+            subtitle.textContent = 'Guest chat ready. We will reply here.';
+          }
+          if (input) input.focus();
+        });
       });
     }
 
@@ -569,9 +610,11 @@
 
     if (conversation && conversation.conversation && conversation.messages) {
       loadConversation(conversation, false);
+      setConversationViewState(true);
     } else {
       setBadge(badge, 0);
       setUnreadBanner(0);
+      setConversationViewState(authenticated);
     }
 
     if (openState && !socketHealthy) {

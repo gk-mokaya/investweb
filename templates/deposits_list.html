@@ -198,7 +198,7 @@
       <div class="modal-body">
         {% if payment_config and payment_config.enable_deposits %}
           <div class="deposit-guide" data-method-only="manual">
-            <div class="deposit-guide-title">Follow these steps to complete a manual USDT deposit.</div>
+            <div class="deposit-guide-title">Deposit in a few steps.</div>
             <div class="deposit-guide-wallet">
               <div class="deposit-guide-wallet-label">TRC20 deposit address</div>
               {% if SYSTEM_SETTINGS.MANUAL_DEPOSIT_WALLET_ADDRESS %}
@@ -220,12 +220,10 @@
               {% endif %}
             </div>
             <ol class="deposit-guide-steps">
-              <li>Go to <strong>Wallet &gt; Spot/Funding &gt; Withdraw &gt; USDT</strong>.</li>
-              <li>Select <strong>Send via Crypto Network</strong>.</li>
-              <li>Paste the copied <strong>TRC20 address</strong> into the address field.</li>
-              <li>Select <strong>TRON (TRC20)</strong> as the network.</li>
-              <li>Enter the exact amount and confirm the transfer.</li>
-              <li>After sending, submit the transaction hash and sender wallet address so our team can review the request.</li>
+              <li>Copy the TRC20 deposit address.</li>
+              <li>Send USDT on the TRON network.</li>
+              <li>Submit the transaction hash and sender wallet address.</li>
+              <li>We review and credit the deposit after confirmation.</li>
             </ol>
           </div>
         {% endif %}
@@ -236,16 +234,20 @@
             {% endfor %}
           </div>
         {% endif %}
-        <div class="form-grid">
+        <div class="form-grid compact deposit-form-grid">
           {% include "partials/form_field.html" with field=create_form.wallet %}
-          <div class="form-group">
+          <div class="form-group deposit-wallet-panel">
             <label>Wallet balance</label>
             <input type="text" id="depositWalletBalance" readonly />
           </div>
           {% include "partials/form_field.html" with field=create_form.crypto %}
           {% include "partials/form_field.html" with field=create_form.amount %}
-          {% include "partials/form_field.html" with field=create_form.sender_address %}
-          {% include "partials/form_field.html" with field=create_form.transaction_hash %}
+          <div class="span-2">
+            {% include "partials/form_field.html" with field=create_form.sender_address %}
+          </div>
+          <div class="span-2">
+            {% include "partials/form_field.html" with field=create_form.transaction_hash %}
+          </div>
         </div>
       </div>
       <div class="modal-footer">

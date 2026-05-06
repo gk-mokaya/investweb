@@ -32,7 +32,9 @@ class DepositManualFlowTests(TestCase):
         crypto_choices = list(form.fields['crypto'].queryset.values_list('symbol', 'network'))
 
         self.assertEqual(crypto_choices, [('USDT', 'TRC20')])
-        self.assertEqual(form.fields['crypto'].empty_label, 'USDT (TRC20)')
+        self.assertEqual(form.fields['crypto'].widget.__class__.__name__, 'Select')
+        self.assertEqual(form.fields['crypto'].empty_label, 'Select crypto')
+        self.assertEqual(form.fields['crypto'].initial, self.crypto.pk)
 
     def test_completing_manual_deposit_credits_wallet_once(self):
         deposit = Deposit.objects.create(

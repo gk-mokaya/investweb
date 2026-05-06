@@ -48,30 +48,36 @@
       {% csrf_token %}
     </form>
 
-    <section class="chat-prechat" data-chat-prechat>
+    <form class="chat-prechat" data-chat-prechat data-chat-prechat-form>
       {% if not request.user.is_authenticated %}
-        <div class="chat-prechat-badge">Visitor mode</div>
+        <div class="chat-prechat-badge">Guest support</div>
       {% endif %}
       <div class="chat-prechat-note">
         {% if request.user.is_authenticated %}
           You are chatting as {{ request.user.get_full_name|default:request.user.username|default:'a member' }}.
         {% else %}
-          Share your name and email so we can keep the conversation together and reply in one place.
+          No login needed. Add your name or email if you want us to follow up outside this chat.
         {% endif %}
       </div>
       <div class="chat-prechat-grid">
         <label class="chat-field">
-          <span>Name</span>
-          <input type="text" data-chat-name value="{{ request.user.get_full_name|default:request.user.username|default:'' }}" placeholder="Your name" />
+          <span>Name{% if not request.user.is_authenticated %} <small>(required)</small>{% endif %}</span>
+          <input type="text" data-chat-name value="{{ request.user.get_full_name|default:request.user.username|default:'' }}" placeholder="Your name" {% if not request.user.is_authenticated %}required{% endif %} />
         </label>
         <label class="chat-field">
-          <span>Email</span>
-          <input type="email" data-chat-email value="{{ request.user.email|default:'' }}" placeholder="you@example.com" />
+          <span>Email{% if not request.user.is_authenticated %} <small>(required)</small>{% endif %}</span>
+          <input type="email" data-chat-email value="{{ request.user.email|default:'' }}" placeholder="you@example.com" {% if not request.user.is_authenticated %}required{% endif %} />
         </label>
       </div>
-    </section>
+      {% if not request.user.is_authenticated %}
+        <div class="chat-prechat-tip">We use these details to begin the support conversation.</div>
+        <div class="chat-prechat-actions">
+          <button type="submit" class="btn primary chat-prechat-submit">Start chat</button>
+        </div>
+      {% endif %}
+    </form>
 
-    <div class="chat-thread" data-chat-thread>
+    <div class="chat-thread" data-chat-thread hidden>
       <div class="chat-empty">
         <strong>Start a new message</strong>
         <span>We will keep the conversation here.</span>
@@ -80,7 +86,7 @@
 
     <div class="chat-attachment-preview" data-chat-attachment-preview hidden></div>
 
-    <form class="chat-compose" data-chat-compose data-no-page-loader="true">
+    <form class="chat-compose" data-chat-compose data-no-page-loader="true" hidden>
       <input type="file" class="chat-file-input" data-chat-attachment accept="image/*" hidden />
       <button type="button" class="chat-compose-action" data-chat-attach aria-label="Attach image">
         <svg class="icon sm"><use href="#icon-plus"></use></svg>

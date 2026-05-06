@@ -19,6 +19,7 @@ class DepositCreateForm(forms.ModelForm):
     def __init__(self, *args, user=None, **kwargs):
         import json
         super().__init__(*args, **kwargs)
+        trc20_crypto = get_active_cryptos().filter(symbol='USDT', network='TRC20').first()
         if user:
             wallets = Wallet.objects.filter(user=user, is_active=True).order_by('-is_default', 'created_at')
             self.fields['wallet'].queryset = wallets
@@ -30,8 +31,10 @@ class DepositCreateForm(forms.ModelForm):
                 'data-balance-target': 'depositWalletBalance',
             })
         self.fields['crypto'].queryset = get_active_cryptos().filter(symbol='USDT', network='TRC20')
-        self.fields['crypto'].empty_label = 'USDT (TRC20)'
-        self.fields['crypto'].help_text = 'Manual deposits are accepted only for USDT on the TRC20 network.'
+        self.fields['crypto'].empty_label = 'Select crypto'
+        if trc20_crypto:
+            self.fields['crypto'].initial = trc20_crypto.pk
+        self.fields['crypto'].help_text = 'TRC20 is the current network, selected automatically.'
         self.fields['amount'].widget.attrs.update({
             'min': '0.01',
             'step': '0.01',
