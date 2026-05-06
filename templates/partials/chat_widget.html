@@ -56,7 +56,7 @@
         {% if request.user.is_authenticated %}
           You are chatting as {{ request.user.get_full_name|default:request.user.username|default:'a member' }}.
         {% else %}
-          No login needed. Add your name or email if you want us to follow up outside this chat.
+          Enter your name and email to start the support chat.
         {% endif %}
       </div>
       <div class="chat-prechat-grid">

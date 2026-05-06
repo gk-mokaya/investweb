@@ -214,9 +214,9 @@
     }
 
     function setConversationViewState(ready) {
-      guestReady = !!ready || authenticated;
+      guestReady = authenticated ? true : !!ready;
       if (prechat) {
-        prechat.hidden = authenticated ? true : !guestReady;
+        prechat.hidden = authenticated ? true : guestReady;
         prechat.style.display = authenticated ? 'none' : (guestReady ? 'none' : '');
       }
       if (thread) thread.hidden = !guestReady;
