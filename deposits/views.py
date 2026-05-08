@@ -47,9 +47,12 @@ class DepositCreateView(LoginRequiredMixin, CreateView):
         deposit = form.save(commit=False)
         deposit.user = self.request.user
         deposit.wallet = form.cleaned_data.get('wallet')
+        if not deposit.wallet:
+            form.add_error('wallet', "Please choose a wallet.")
+            return self.form_invalid(form)
         deposit.method = 'manual'
         deposit.status = 'pending'
-        if deposit.wallet and deposit.wallet.user_id != self.request.user.id:
+        if deposit.wallet.user_id != self.request.user.id:
             form.add_error('wallet', "Invalid wallet selection.")
             return self.form_invalid(form)
 

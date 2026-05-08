@@ -56,6 +56,9 @@ class WithdrawalCreateView(LoginRequiredMixin, CreateView):
             return self.form_invalid(form)
 
         wallet = form.cleaned_data.get('wallet')
+        if not wallet:
+            form.add_error('wallet', "Please choose a wallet.")
+            return self.form_invalid(form)
         if wallet and wallet.user_id != self.request.user.id:
             form.add_error('wallet', "Invalid wallet selection.")
             return self.form_invalid(form)

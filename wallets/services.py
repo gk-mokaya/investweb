@@ -2,6 +2,7 @@ from decimal import Decimal
 from typing import Literal
 
 from django.db import transaction
+from django.db import IntegrityError
 
 from wallets.models import Wallet, Transaction, WalletTransfer
 
@@ -24,20 +25,32 @@ def get_primary_wallet(user) -> Wallet | None:
     if wallet:
         return wallet
     try:
-        return create_primary_wallet(user)
-    except Exception:
+        wallet, _ = Wallet.objects.get_or_create(
+            user=user,
+            wallet_type='primary',
+            defaults={
+                'name': 'Primary Wallet',
+                'is_default': True,
+                'is_active': True,
+            },
+        )
+        return wallet
+    except IntegrityError:
         return None
 
 
 def create_primary_wallet(user, *, name: str | None = None) -> Wallet:
     default_name = name or 'Primary Wallet'
-    return Wallet.objects.create(
+    wallet, _ = Wallet.objects.get_or_create(
         user=user,
-        name=default_name,
         wallet_type='primary',
-        is_default=True,
-        is_active=True,
+        defaults={
+            'name': default_name,
+            'is_default': True,
+            'is_active': True,
+        },
     )
+    return wallet
 
 
 def create_wallet(
@@ -66,6 +79,7 @@ def create_wallet(
 def credit_wallet(wallet: Wallet, amount: Decimal, bucket: BalanceBucket, txn_type: str, meta: dict | None = None) -> None:
     if amount <= 0:
         raise ValueError("Amount must be positive.")
+    wallet = Wallet.objects.select_for_update().get(pk=wallet.pk)
     _apply_amount(wallet, bucket, amount)
     wallet.save(update_fields=['main_balance', 'bonus_balance', 'profit_balance'])
     Transaction.objects.create(
@@ -82,6 +96,10 @@ def credit_wallet(wallet: Wallet, amount: Decimal, bucket: BalanceBucket, txn_ty
 def debit_wallet(wallet: Wallet, amount: Decimal, bucket: BalanceBucket, txn_type: str, meta: dict | None = None) -> None:
     if amount <= 0:
         raise ValueError("Amount must be positive.")
+    wallet = Wallet.objects.select_for_update().get(pk=wallet.pk)
+    current_balance = getattr(wallet, f'{bucket}_balance')
+    if amount > current_balance:
+        raise ValueError("Insufficient balance.")
     _apply_amount(wallet, bucket, -amount)
     wallet.save(update_fields=['main_balance', 'bonus_balance', 'profit_balance'])
     Transaction.objects.create(
@@ -109,6 +127,14 @@ def transfer_between_wallets(
         raise ValueError("Wallets must belong to the same user.")
     if amount <= 0:
         raise ValueError("Amount must be positive.")
+    locked_wallets = list(
+        Wallet.objects.select_for_update().filter(pk__in=[from_wallet.pk, to_wallet.pk]).order_by('pk')
+    )
+    wallet_map = {wallet.pk: wallet for wallet in locked_wallets}
+    from_wallet = wallet_map.get(from_wallet.pk)
+    to_wallet = wallet_map.get(to_wallet.pk)
+    if not from_wallet or not to_wallet:
+        raise ValueError("Wallets could not be locked.")
     current_balance = getattr(from_wallet, f"{bucket}_balance")
     if amount > current_balance:
         raise ValueError("Insufficient balance in the source wallet.")

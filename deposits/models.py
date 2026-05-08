@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models, transaction
 from django.contrib.auth.models import User
 
 
@@ -51,11 +51,18 @@ class Deposit(models.Model):
         return f"{self.user.username} - {self.crypto.symbol} - {self.amount}"
 
     def save(self, *args, **kwargs):
-        status_before = None
         if self.pk:
-            status_before = Deposit.objects.filter(pk=self.pk).values_list('status', flat=True).first()
-        super().save(*args, **kwargs)
+            with transaction.atomic():
+                status_before = Deposit.objects.select_for_update().filter(pk=self.pk).values_list('status', flat=True).first()
+                super().save(*args, **kwargs)
+                self._apply_status_side_effects(status_before)
+            return
 
+        status_before = None
+        super().save(*args, **kwargs)
+        self._apply_status_side_effects(status_before)
+
+    def _apply_status_side_effects(self, status_before):
         if status_before is None and self.status != 'completed':
             return
 

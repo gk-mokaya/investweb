@@ -23,6 +23,7 @@ class WelcomeBonusSignalTests(TestCase):
 
         self.assertEqual(wallet.main_balance, Decimal('25'))
         self.assertTrue(Notification.objects.filter(user=user, title='Welcome bonus credited').exists())
+        self.assertTrue(hasattr(user, 'investment_account'))
 
     def test_profile_update_changes_personal_details_without_email(self):
         user = User.objects.create_user(username='bravo', email='bravo@example.com', password='pass12345')

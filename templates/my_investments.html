@@ -3,28 +3,60 @@
 {% block title %}Investment History | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
 
 {% block content %}
-<div class="card-grid">
-  <div class="card">
-    <div class="card-header">
-      <div>
-        <div class="card-title">Open investments</div>
-        <div class="card-muted">Currently running plans</div>
-      </div>
-      <span class="badge info">{{ investments|length }}</span>
+<section class="section-card investment-slim-card">
+  <div class="section-header investment-slim-header">
+    <div>
+      <div class="section-title">Investment overview</div>
+      <div class="card-muted">A compact snapshot of capital, profit, and positions.</div>
     </div>
-    <div class="metric-value">{{ investments|length }}</div>
+    <span class="badge info">{{ active_investments_count|number }} active</span>
   </div>
-  <div class="card">
-    <div class="card-header">
-      <div>
-        <div class="card-title">Wallet balance</div>
-        <div class="card-muted">Ready for allocation</div>
-      </div>
-      <span class="badge info">Wallet</span>
+
+  <div class="investment-slim-topline">
+    <div class="investment-slim-total">
+      <span>Total capital invested</span>
+      <strong>{{ total_invested|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</strong>
     </div>
-    <div class="metric-value">{{ WALLET_SUMMARY.total_balance|default:'0' }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</div>
+    <div class="investment-slim-metrics">
+      <div class="investment-mini-stat">
+        <span>Locked</span>
+        <strong>{{ INVESTMENT_SUMMARY.active_principal|default:'0'|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</strong>
+      </div>
+      <div class="investment-mini-stat">
+        <span>Profit</span>
+        <strong>{{ INVESTMENT_SUMMARY.active_earned|default:'0'|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</strong>
+      </div>
+      <div class="investment-mini-stat">
+        <span>Open</span>
+        <strong>{{ active_investments_count|default:0|number }}</strong>
+      </div>
+      <div class="investment-mini-stat">
+        <span>Done</span>
+        <strong>{{ INVESTMENT_SUMMARY.completed_positions_count|default:0|number }}</strong>
+      </div>
+    </div>
   </div>
-</div>
+
+  <div class="investment-slim-mix{% if capital_mix_total == 0 %} is-empty{% endif %}"
+       style="--primary-share: {{ capital_mix_primary_share }}%; --investment-share: {{ capital_mix_investment_share }}%;">
+    <div class="investment-slim-bar">
+      <span class="primary"></span>
+      <span class="warning"></span>
+    </div>
+    <div class="investment-slim-mix-meta">
+      <div class="investment-slim-mix-item">
+        <span class="capital-legend-dot primary"></span>
+        <span class="investment-slim-mix-label">Primary wallet</span>
+        <strong>{{ capital_mix_primary_balance|default:'0'|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</strong>
+      </div>
+      <div class="investment-slim-mix-item">
+        <span class="capital-legend-dot warning"></span>
+        <span class="investment-slim-mix-label">Investment ledger</span>
+        <strong>{{ capital_mix_investment_balance|default:'0'|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</strong>
+      </div>
+    </div>
+  </div>
+</section>
 
 <div class="section-card">
   <div class="section-header">
@@ -52,8 +84,8 @@
       <tbody>
         {% for investment in investments %}
           <tr>
-            <td data-label="Plan">{{ investment.plan.name }}</td>
-            <td data-label="Amount">{{ investment.amount }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</td>
+            <td data-label="Plan">{{ investment.effective_plan_name }}</td>
+            <td data-label="Amount">{{ investment.amount|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</td>
             <td data-label="Start">{{ investment.start_date|date:"M d, Y" }}</td>
             <td data-label="End">{{ investment.end_date|date:"M d, Y" }}</td>
             <td data-label="Status">
@@ -97,16 +129,20 @@
           <div class="modal-section-title">Investment details</div>
           <div class="plan-detail-grid investment-detail-grid">
             <div class="detail-item">
-              <div class="detail-label">Wallet</div>
+              <div class="detail-label">Funding wallet</div>
               <div class="detail-value">{% if investment.wallet %}{{ investment.wallet.name }} - {{ investment.wallet.get_wallet_type_display }}{% else %}-{% endif %}</div>
             </div>
             <div class="detail-item">
+              <div class="detail-label">Investment ledger</div>
+              <div class="detail-value">{% if investment.account %}{{ investment.account }}{% else %}-{% endif %}</div>
+            </div>
+            <div class="detail-item">
               <div class="detail-label">Plan</div>
-              <div class="detail-value">{{ investment.plan.name }}</div>
+              <div class="detail-value">{{ investment.effective_plan_name }}</div>
             </div>
             <div class="detail-item">
               <div class="detail-label">Amount</div>
-              <div class="detail-value">{{ investment.amount }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</div>
+              <div class="detail-value">{{ investment.amount|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</div>
             </div>
             <div class="detail-item">
               <div class="detail-label">Start date</div>
@@ -121,44 +157,50 @@
               <div class="detail-value">{% if investment.is_completed %}Completed{% else %}Active{% endif %}</div>
             </div>
             <div class="detail-item">
-              <div class="detail-label">Daily ROI</div>
-              <div class="detail-value">{{ investment.plan.daily_roi }}%</div>
+              <div class="detail-label">Total Profit</div>
+              <div class="detail-value">{{ investment.effective_total_return|pct }}</div>
             </div>
             <div class="detail-item">
               <div class="detail-label">Duration</div>
-              <div class="detail-value">{{ investment.plan.duration_days }} days</div>
+              <div class="detail-value">{{ investment.effective_duration_days|number }} days</div>
             </div>
             <div class="detail-item">
               <div class="detail-label">Payout Frequency</div>
-              <div class="detail-value">{{ investment.plan.get_payout_frequency_display }}</div>
+              <div class="detail-value">{{ investment.effective_payout_frequency_display }}</div>
             </div>
             <div class="detail-item">
               <div class="detail-label">Liquidity</div>
-              <div class="detail-value">{{ investment.plan.get_liquidity_terms_display }}</div>
+              <div class="detail-value">{{ investment.effective_liquidity_terms_display }}</div>
             </div>
             <div class="detail-item">
               <div class="detail-label">Total earned</div>
-              <div class="detail-value">{{ investment.total_earned }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</div>
+              <div class="detail-value">{{ investment.total_earned|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">Settlement</div>
+              <div class="detail-value">{% if investment.settled_at %}{{ investment.settled_at|date:"M d, Y H:i" }}{% else %}Pending release{% endif %}</div>
             </div>
           </div>
         </div>
-        <div class="schedule-section">
+        <div class="schedule-section investment-schedule-card">
           <div class="modal-section-title">Payout schedule</div>
           <div class="table-wrapper">
-            <table class="table schedule-table"
+            <table class="table schedule-table investment-schedule-table"
                    data-schedule-table
                    data-start="{{ investment.start_date|date:'Y-m-d' }}"
                    data-end="{{ investment.end_date|date:'Y-m-d' }}"
                    data-amount="{{ investment.amount }}"
-                   data-roi="{{ investment.plan.daily_roi }}"
-                   data-fee="{{ investment.plan.management_fee_pct }}"
+                   data-total-return="{{ investment.effective_total_return }}"
+                   data-duration-days="{{ investment.effective_duration_days }}"
+                   data-frequency="{{ investment.effective_payout_frequency }}"
+                   data-fee="{{ investment.effective_management_fee_pct }}"
                    data-currency="{{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}"
                    data-completed="{% if investment.is_completed %}true{% else %}false{% endif %}"
                    data-earned='[{% for profit in investment.profit_schedule %}{"date":"{{ profit.date|date:"Y-m-d" }}","amount":"{{ profit.amount }}"}{% if not forloop.last %},{% endif %}{% endfor %}]'>
               <thead>
                 <tr>
                   <th>Date</th>
-                  <th>Daily Profit</th>
+                  <th>Payout Amount</th>
                   <th>Cumulative Profit</th>
                   <th>Status</th>
                 </tr>
@@ -257,7 +299,7 @@
                 <strong data-overview-minmax>-</strong>
               </div>
               <div class="overview-row">
-                <span>Daily ROI</span>
+                <span>Total Profit</span>
                 <strong data-overview-roi>-</strong>
               </div>
               <div class="overview-row">

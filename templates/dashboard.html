@@ -3,249 +3,273 @@
 {% block title %}Dashboard | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
 
 {% block content %}
-<div class="dashboard-shell">
-  <section class="dashboard-hero">
-    <div class="dashboard-hero-copy">
-      <div class="eyebrow">Account overview</div>
-      <h1>Review the balances and plans that matter most.</h1>
-      <p>
-        A focused view of your balances, earnings, active plans, and available withdrawals so you can make faster decisions.
-      </p>
+<div class="dashboard-compact-shell dashboard-redesign">
+  <section class="section-card dashboard-compact-hero">
+    <div class="dashboard-compact-copy">
+      <div class="eyebrow">Overview</div>
+      <h1>Dashboard</h1>
+      <p>A compact control center for balances, investment flow, and plan health.</p>
       <div class="dashboard-actions">
-        <a class="btn primary" href="{% url 'plans' %}">Explore plans</a>
-        <a class="btn ghost" href="{% url 'withdrawal_list' %}">Withdraw funds</a>
-      </div>
-    </div>
-    <div class="dashboard-hero-panel">
-      <div class="hero-stat">
-        <span>Main balance</span>
-        <strong>{{ total_balance }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</strong>
-        {% if bonus_balance_note %}<p>{{ bonus_balance_note }}</p>{% endif %}
-      </div>
-      <div class="hero-stat">
-        <span>Available to withdraw</span>
-        <strong>{{ withdrawable_balance }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</strong>
+        <a class="btn primary" href="{% url 'plans' %}">Browse plans</a>
+        <a class="btn ghost" href="{% url 'deposit_list' %}">Deposits</a>
+        <a class="btn ghost" href="{% url 'withdrawal_list' %}">Withdrawals</a>
       </div>
     </div>
   </section>
 
-  <section class="dashboard-charts">
-    <article class="dashboard-chart-card dashboard-chart-card-wide">
-      <div class="dashboard-chart-header">
-        <div class="dashboard-chart-heading">
-          <div class="section-title">{{ chart_heading }}</div>
-          <div class="card-muted">Deposits, withdrawals, and profit posted over the selected range.</div>
-        </div>
-        <form class="chart-filter" method="get" data-auto-submit="true">
-          <div class="chart-filter-field">
-            <label for="chartStart">From</label>
-            <input id="chartStart" type="date" name="start_date" value="{{ chart_start_date }}" />
+  <section class="dashboard-kpi-grid">
+    <article class="dashboard-kpi-card primary">
+      <span>Portfolio total</span>
+      <strong>{{ portfolio_total|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</strong>
+      <p>Primary wallet plus investment ledger.</p>
+    </article>
+    <article class="dashboard-kpi-card info">
+      <span>Primary wallet</span>
+      <strong>{{ primary_wallet_balance|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</strong>
+      <p>Available money in the main wallet.</p>
+    </article>
+    <article class="dashboard-kpi-card warning">
+      <span>Investment ledger</span>
+      <strong>{{ investment_ledger_balance|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</strong>
+      <p>Capital locked into active positions.</p>
+    </article>
+    <article class="dashboard-kpi-card success">
+      <span>Withdrawable</span>
+      <strong>{{ withdrawable_balance|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</strong>
+      <p>Balance currently available for payout.</p>
+    </article>
+    <article class="dashboard-kpi-card neutral">
+      <span>Active positions</span>
+      <strong>{{ active_investments_count|default:0|number }}</strong>
+      <p>Running investments in the ledger.</p>
+    </article>
+    <article class="dashboard-kpi-card neutral">
+      <span>Pending reviews</span>
+      <strong>{{ pending_reviews_count|default:0|number }}</strong>
+      <p>Deposits and withdrawals waiting attention.</p>
+    </article>
+  </section>
+
+  <section class="dashboard-panels-grid dashboard-panels-grid-tight">
+    <article class="section-card dashboard-panel dashboard-panel-wide dashboard-chart-card dashboard-chart-card-wide">
+      <div class="dashboard-chart-head">
+        <div class="section-header dashboard-panel-header">
+          <div>
+            <div class="section-title">{{ cash_chart_heading }}</div>
+            <div class="card-muted">Deposits and withdrawals over the selected date range.</div>
           </div>
-          <div class="chart-filter-field">
-            <label for="chartEnd">To</label>
-            <input id="chartEnd" type="date" name="end_date" value="{{ chart_end_date }}" />
+        </div>
+      </div>
+      <div class="dashboard-chart-toprow">
+        <div class="chart-legend dashboard-chart-legend">
+          {% for series in cash_series %}
+            <div class="chart-legend-item {{ series.tone }}">
+              <span class="chart-legend-swatch"></span>
+              <span>{{ series.label }}</span>
+              <strong>{{ series.total|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</strong>
+            </div>
+          {% endfor %}
+        </div>
+        <form class="dashboard-filter-bar" method="get" data-auto-submit="true">
+          <div class="dashboard-range-field">
+            <label for="cashStart">From</label>
+            <input id="cashStart" type="date" name="start_date" value="{{ chart_start_date }}" />
+          </div>
+          <div class="dashboard-range-field">
+            <label for="cashEnd">To</label>
+            <input id="cashEnd" type="date" name="end_date" value="{{ chart_end_date }}" />
           </div>
         </form>
       </div>
-      <div class="dashboard-chart-legend">
-        {% for series in activity_series %}
-          <div class="chart-legend-item {{ series.tone }}">
-            <span class="chart-legend-swatch"></span>
-            <span>{{ series.label }}</span>
-            <strong>{{ series.total }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</strong>
+      <div class="dashboard-chart-scroll">
+        <div class="dashboard-chart-canvas" style="width: {{ cash_chart_width }}px;">
+          <svg class="dashboard-trend-svg" viewBox="0 0 {{ cash_chart_width }} 220" preserveAspectRatio="none" aria-label="Cash movement chart">
+            <path class="chart-grid" d="M 16 16 H {{ cash_chart_width|add:'-16' }} M 16 66 H {{ cash_chart_width|add:'-16' }} M 16 116 H {{ cash_chart_width|add:'-16' }} M 16 166 H {{ cash_chart_width|add:'-16' }} M 16 204 H {{ cash_chart_width|add:'-16' }}"></path>
+            {% for series in cash_series %}
+              <path class="chart-area {{ series.tone }}" d="{{ series.area_path }}"></path>
+              <path class="chart-line {{ series.tone }}" d="{{ series.line_path }}"></path>
+            {% endfor %}
+          </svg>
+          <div class="dashboard-axis" style="grid-template-columns: repeat({{ cash_axis_labels|length }}, minmax(0, 1fr));">
+            {% for label in cash_axis_labels %}
+              <span>{{ label }}</span>
+            {% endfor %}
           </div>
-        {% endfor %}
-      </div>
-      <div class="dashboard-line-chart-wrap">
-        <svg class="dashboard-line-chart" viewBox="0 0 420 220" preserveAspectRatio="none" aria-label="User activity chart">
-          <path class="chart-grid" d="M 16 16 H 404 M 16 66 H 404 M 16 116 H 404 M 16 166 H 404 M 16 204 H 404"></path>
-          {% for series in activity_series %}
-            <path class="chart-area {{ series.tone }}" d="{{ series.area_path }}"></path>
-            <path class="chart-line {{ series.tone }}" d="{{ series.line_path }}"></path>
-          {% endfor %}
-        </svg>
-      </div>
-      <div class="chart-axis">
-        {% for day in activity_axis_labels %}
-          <span>{{ day }}</span>
-        {% endfor %}
-      </div>
-    </article>
-
-    <article class="dashboard-chart-card">
-      <div class="section-header">
-        <div>
-          <div class="section-title">Balance mix</div>
-          <div class="card-muted">Main and profit buckets inside your wallet.</div>
         </div>
       </div>
-      <div class="balance-stack">
-        {% for segment in balance_segments %}
-          <div class="balance-stack-row {{ segment.tone }}">
-            <div class="balance-stack-meta">
-              <span>{{ segment.label }}</span>
-              <strong>{{ segment.value }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</strong>
-            </div>
-            <div class="balance-stack-track">
-              <span style="width: {{ segment.percent }}%"></span>
-            </div>
-          </div>
-        {% endfor %}
-      </div>
     </article>
 
-    <article class="dashboard-chart-card">
-      <div class="section-header">
+    <article class="section-card dashboard-panel dashboard-panel-wide dashboard-chart-card dashboard-chart-card-wide">
+      <div class="dashboard-chart-head">
+        <div class="section-header dashboard-panel-header">
+          <div>
+            <div class="section-title">{{ investment_chart_heading }}</div>
+            <div class="card-muted">Each active plan gets its own series so the graph updates automatically.</div>
+          </div>
+        </div>
+      </div>
+      <div class="dashboard-chart-toprow">
+        <div class="chart-legend dashboard-chart-legend">
+          {% for series in investment_series %}
+            <div class="chart-legend-item {{ series.tone }}">
+              <span class="chart-legend-swatch"></span>
+              <span>{{ series.label }}</span>
+              <strong>{{ series.total|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</strong>
+            </div>
+          {% empty %}
+            <div class="empty-state">No active investment series yet.</div>
+          {% endfor %}
+        </div>
+        <form class="dashboard-filter-bar" method="get" data-auto-submit="true">
+          <div class="dashboard-range-field">
+            <label for="invStart">From</label>
+            <input id="invStart" type="date" name="start_date" value="{{ chart_start_date }}" />
+          </div>
+          <div class="dashboard-range-field">
+            <label for="invEnd">To</label>
+            <input id="invEnd" type="date" name="end_date" value="{{ chart_end_date }}" />
+          </div>
+        </form>
+      </div>
+      <div class="dashboard-chart-scroll">
+        <div class="dashboard-chart-canvas" style="width: {{ investment_chart_width }}px;">
+          <svg class="dashboard-trend-svg" viewBox="0 0 {{ investment_chart_width }} 220" preserveAspectRatio="none" aria-label="Investment earnings chart">
+            <path class="chart-grid" d="M 16 16 H {{ investment_chart_width|add:'-16' }} M 16 66 H {{ investment_chart_width|add:'-16' }} M 16 116 H {{ investment_chart_width|add:'-16' }} M 16 166 H {{ investment_chart_width|add:'-16' }} M 16 204 H {{ investment_chart_width|add:'-16' }}"></path>
+            {% for series in investment_series %}
+              <path class="chart-area {{ series.tone }}" d="{{ series.area_path }}"></path>
+              <path class="chart-line {{ series.tone }}" d="{{ series.line_path }}"></path>
+            {% endfor %}
+          </svg>
+          <div class="dashboard-axis" style="grid-template-columns: repeat({{ investment_axis_labels|length }}, minmax(0, 1fr));">
+            {% for label in investment_axis_labels %}
+              <span>{{ label }}</span>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <section class="dashboard-bottom-grid">
+    <article class="section-card dashboard-panel">
+      <div class="section-header dashboard-panel-header">
         <div>
           <div class="section-title">Plan allocation</div>
-          <div class="card-muted">Where your invested capital is currently concentrated.</div>
         </div>
+        <span class="badge info">{{ active_investments_count|default:0|number }} active investments</span>
       </div>
-      <div class="allocation-list">
-        {% for item in plan_allocation %}
-          <div class="allocation-row">
-            <div class="allocation-top">
-              <span>{{ item.label }}</span>
-              <strong>{{ item.value }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</strong>
-            </div>
-            <div class="allocation-track">
-              <span style="width: {{ item.percent }}%"></span>
-            </div>
-          </div>
-        {% empty %}
-          <div class="empty-state">No active allocations yet.</div>
-        {% endfor %}
-      </div>
-    </article>
-  </section>
-
-  <section class="dashboard-metrics">
-    <article class="dashboard-metrics-card">
-      <div class="dashboard-metrics-head">
-        <div>
-          <span>Financial summary</span>
-          <strong>Account performance at a glance</strong>
-        </div>
-        <div class="badge info">Overview</div>
-      </div>
-      <div class="dashboard-metrics-grid">
-        <div class="dashboard-metric-card">
-          <span>Capital committed</span>
-          <strong>{{ total_invested }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</strong>
-          <p>Total amount currently allocated to active and completed plans.</p>
-        </div>
-        <div class="dashboard-metric-card">
-          <span>Profit earned</span>
-          <strong>{{ total_earned }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</strong>
-          <p>Accrued profit across your investment history.</p>
-        </div>
-        <div class="dashboard-metric-card">
-          <span>Open plans</span>
-          <strong>{{ active_investments_count|default:0 }}</strong>
-          <p>Plans that are currently running or awaiting completion.</p>
-        </div>
-        <div class="dashboard-metric-card">
-          <span>Profit balance</span>
-          <strong>{{ profit_balance }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</strong>
-          <p>Available profit held separately from your main balance.</p>
-        </div>
-      </div>
-    </article>
-  </section>
-
-  <section class="dashboard-grid">
-    <div class="section-card">
-      <div class="section-header">
-        <div>
-          <div class="section-title">Portfolio snapshot</div>
-          <div class="card-muted">Your next maturity and current balance breakdown.</div>
-        </div>
-      </div>
-      <div class="snapshot-grid">
-        <div class="snapshot-item">
-          <span>Next maturity</span>
-          <strong>{% if next_maturity %}{{ next_maturity.plan.name }}{% else %}No active plan{% endif %}</strong>
-          <p>
-            {% if next_maturity %}
-              Due in {{ next_maturity_days }} day{{ next_maturity_days|pluralize }}
-            {% else %}
-              Open a plan to see future maturities.
-            {% endif %}
-          </p>
-        </div>
-        <div class="snapshot-item">
-          <span>Balance allocation</span>
-          <strong>{{ total_balance }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</strong>
-          <p>{{ balance_overview_note }}</p>
-        </div>
-      </div>
-    </div>
-
-    <div class="section-card">
-      <div class="section-header">
-        <div>
-          <div class="section-title">Quick actions</div>
-          <div class="card-muted">The next steps users reach most often.</div>
-        </div>
-      </div>
-      <div class="quick-actions-grid">
-        <a class="quick-action" href="{% url 'plans' %}">
-          <strong>Choose a plan</strong>
-          <span>Review live investment options</span>
-        </a>
-        <a class="quick-action" href="{% url 'deposit_list' %}">
-          <strong>Add funds</strong>
-          <span>Fund your wallet and scale up</span>
-        </a>
-        <a class="quick-action" href="{% url 'withdrawal_list' %}">
-          <strong>Request withdrawal</strong>
-          <span>Move profit out when ready</span>
-        </a>
-        <a class="quick-action" href="{% url 'profile' %}">
-          <strong>Update profile</strong>
-          <span>Keep your account details current</span>
-        </a>
-      </div>
-    </div>
-  </section>
-
-  <section class="section-card">
-    <div class="section-header">
-      <div>
-        <div class="section-title">Recent investments</div>
-        <div class="card-muted">A concise list of the latest positions.</div>
-      </div>
-      <div class="section-actions">
-        <a class="btn ghost" href="{% url 'my_investments' %}">View all</a>
-      </div>
-    </div>
-
-    <div class="recent-investment-list">
-      {% for item in investments %}
-        {% with investment=item.investment %}
-          <article class="recent-investment">
-            <div class="recent-investment-top">
-              <div>
-                <div class="card-title">{{ investment.plan.name }}</div>
-                <div class="card-muted">{{ investment.amount }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }} invested</div>
-              </div>
-              {% if investment.is_completed %}
-                <span class="badge success">Completed</span>
-              {% else %}
-                <span class="badge info">Active</span>
+      <div class="dashboard-pie-wrap">
+        <svg class="dashboard-pie-chart{% if not plan_allocation %} is-empty{% endif %}" viewBox="0 0 120 120" role="img" aria-label="Plan allocation pie chart">
+          <circle class="dashboard-pie-track" cx="60" cy="60" r="46"></circle>
+          {% if plan_allocation %}
+            {% for item in plan_allocation %}
+              {% if item.slice_path %}
+                <path class="dashboard-pie-slice" d="{{ item.slice_path }}" fill="{{ item.color }}">
+                  <title>{{ item.title }}</title>
+                </path>
               {% endif %}
+              {% if item.percent >= 4 %}
+                <text class="dashboard-pie-slice-label" x="{{ item.label_x }}" y="{{ item.label_y }}">
+                  {{ item.percent }}%
+                </text>
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+        </svg>
+      </div>
+      <div class="dashboard-pie-legend-scroll">
+        <div class="dashboard-pie-legend">
+          <div class="dashboard-pie-table-head">
+            <span>Plan</span>
+            <span>Investments</span>
+            <span>Amount</span>
+            <span>Share</span>
+          </div>
+          {% for item in plan_allocation %}
+            <div class="dashboard-pie-row">
+              <div class="dashboard-pie-cell dashboard-pie-cell-plan">
+                <span class="dashboard-pie-dot" style="background: {{ item.color }};"></span>
+                <strong>{{ item.label }}</strong>
+              </div>
+              <div class="dashboard-pie-cell dashboard-pie-cell-count">
+                {{ item.investments|number }}
+              </div>
+              <div class="dashboard-pie-cell dashboard-pie-cell-amount">
+                {{ item.value|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}
+              </div>
+              <div class="dashboard-pie-cell dashboard-pie-cell-percent">
+                {{ item.percent }}%
+              </div>
             </div>
-            <div class="progress"><span style="width: {{ item.progress }}%"></span></div>
-            <div class="recent-investment-meta">
-              <span>Started {{ investment.start_date|date:"M d, Y" }}</span>
-              <span>{% if item.days_left %}{{ item.days_left }} day{{ item.days_left|pluralize }} left{% else %}Matured{% endif %}</span>
-            </div>
-          </article>
-        {% endwith %}
-      {% empty %}
-        <div class="empty-state">No investments yet. Choose a plan to start building returns.</div>
-      {% endfor %}
-    </div>
+          {% empty %}
+            <div class="empty-state">No active capital to allocate yet.</div>
+          {% endfor %}
+        </div>
+      </div>
+    </article>
+
+    <article class="section-card dashboard-panel">
+      <div class="section-header dashboard-panel-header">
+        <div>
+          <div class="section-title">Open investments</div>
+        </div>
+        <div class="section-actions">
+          <a class="btn ghost" href="{% url 'my_investments' %}">View all</a>
+        </div>
+      </div>
+
+      <div class="dashboard-investment-table-scroll">
+        <div class="dashboard-investment-table">
+          <div class="dashboard-investment-table-head">
+            <span>Plan</span>
+            <span>Amount</span>
+            <span>Progress</span>
+            <span>Earned</span>
+            <span>Ends</span>
+            <span>Status</span>
+          </div>
+          {% for item in active_position_rows|slice:":3" %}
+            {% with investment=item.investment %}
+              <div class="dashboard-investment-row">
+                <div class="dashboard-investment-cell dashboard-investment-cell-plan">
+                  <strong>{{ investment.effective_plan_name }}</strong>
+                  <span>{{ item.days_left }} days left</span>
+                </div>
+                <div class="dashboard-investment-cell dashboard-investment-cell-amount">
+                  {{ investment.amount|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}
+                </div>
+                <div class="dashboard-investment-cell dashboard-investment-cell-progress">
+                  <div class="position-progress">
+                    <div class="position-progress-track">
+                      <span class="position-progress-fill" style="width: {{ item.progress }}%;"></span>
+                    </div>
+                    <strong>{{ item.progress }}%</strong>
+                  </div>
+                </div>
+                <div class="dashboard-investment-cell dashboard-investment-cell-earned">
+                  {{ item.earned|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}
+                </div>
+                <div class="dashboard-investment-cell dashboard-investment-cell-date">
+                  {{ investment.end_date|date:"M d, Y" }}
+                </div>
+                <div class="dashboard-investment-cell dashboard-investment-cell-status">
+                  {% if investment.is_completed %}
+                    <span class="badge success">Completed</span>
+                  {% else %}
+                    <span class="badge info">Active</span>
+                  {% endif %}
+                </div>
+              </div>
+            {% endwith %}
+          {% empty %}
+            <div class="empty-state">No open investments yet.</div>
+          {% endfor %}
+        </div>
+      </div>
+      {% if active_position_rows|length > 3 %}
+        <div class="dashboard-range-note">Showing 3 of {{ active_position_rows|length }} open investments. View all on the investments page.</div>
+      {% endif %}
+    </article>
   </section>
 </div>
 {% endblock %}

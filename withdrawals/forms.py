@@ -24,7 +24,7 @@ class WithdrawalCreateForm(forms.ModelForm):
         config = get_payment_configuration()
         trc20_crypto = get_active_cryptos().filter(symbol='USDT', network='TRC20').first()
         if user:
-            wallets = Wallet.objects.filter(user=user, is_active=True).order_by('-is_default', 'created_at')
+            wallets = Wallet.objects.filter(user=user, wallet_type='primary', is_active=True).order_by('-is_default', 'created_at')
             self.fields['wallet'].queryset = wallets
             self.fields['wallet'].empty_label = 'Select wallet'
             self.fields['wallet'].label_from_instance = lambda obj: f"{obj.name} - {obj.get_wallet_type_display()}"

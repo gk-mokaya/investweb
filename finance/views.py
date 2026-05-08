@@ -1,17 +1,21 @@
+from decimal import Decimal
+
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.db.models import Q
+from django.db.models import Q, Count, Sum
+from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.views import View
 from django.views.generic import ListView, TemplateView
+from django.db.models import Prefetch
 
 from adminpanel.utils import log_action
 from deposits.models import Deposit
 from deposits.services import verify_and_update_deposit, ProviderError
 from investments.forms import InvestmentPlanForm
-from investments.models import InvestmentPlan
+from investments.models import InvestmentPlan, InvestmentAccount, UserInvestment
 from payments.models import CryptoCurrency, PaymentConfiguration
 from payments.services import get_payment_configuration
 from wallets.models import Wallet
@@ -41,6 +45,36 @@ def build_plan_page_context(request, *, plans=None, create_form=None, edit_form=
     }
 
 
+def _parse_int(value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _clone_plan_fields(plan: InvestmentPlan) -> dict:
+    next_version = (plan.version_number or 1) + 1
+    return {
+        'name': f'{plan.name} {next_version}',
+        'plan_tier': plan.plan_tier,
+        'source_plan': plan,
+        'version_number': next_version,
+        'min_amount': plan.min_amount,
+        'max_amount': plan.max_amount,
+        'total_return': plan.total_return,
+        'duration_days': plan.duration_days,
+        'description': plan.description,
+        'risk_level': plan.risk_level,
+        'payout_frequency': plan.payout_frequency,
+        'liquidity_terms': plan.liquidity_terms,
+        'lock_period_days': plan.lock_period_days,
+        'management_fee_pct': plan.management_fee_pct,
+        'capital_protection': plan.capital_protection,
+        'early_withdrawal_fee_pct': plan.early_withdrawal_fee_pct,
+        'is_active': False,
+    }
+
+
 def _filter_plans_for_request(request):
     queryset = InvestmentPlan.objects.all().order_by('min_amount')
     query = request.GET.get('q', '').strip()
@@ -58,6 +92,103 @@ def _filter_plans_for_request(request):
     return queryset
 
 
+class AdminInvestmentLedgerView(LoginRequiredMixin, StaffOnlyMixin, ListView):
+    template_name = 'admin_investment_ledger.html'
+    model = InvestmentAccount
+    context_object_name = 'accounts'
+    paginate_by = 20
+
+    def get_queryset(self):
+        queryset = (
+            InvestmentAccount.objects.select_related('user')
+            .prefetch_related(
+                Prefetch(
+                    'positions',
+                    queryset=UserInvestment.objects.select_related('plan').order_by('-start_date'),
+                )
+            )
+            .annotate(
+                active_principal_total=Sum('positions__amount', filter=Q(positions__is_completed=False)),
+                active_earned_total=Sum('positions__total_earned', filter=Q(positions__is_completed=False)),
+                total_earned_total=Sum('positions__total_earned'),
+                active_positions_total=Count('positions', filter=Q(positions__is_completed=False)),
+                completed_positions_total=Count('positions', filter=Q(positions__is_completed=True)),
+                settled_principal_total=Sum('positions__amount', filter=Q(positions__is_completed=True)),
+            )
+            .order_by('user__username')
+        )
+        query = self.request.GET.get('q', '').strip()
+        status = self.request.GET.get('status', '').strip()
+        if query:
+            queryset = queryset.filter(Q(user__username__icontains=query) | Q(user__email__icontains=query))
+        if status == 'active':
+            queryset = queryset.filter(active_positions_count__gt=0)
+        elif status == 'settled':
+            queryset = queryset.filter(completed_positions_count__gt=0, active_positions_count=0)
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        filtered_queryset = self.get_queryset()
+        summary_totals = filtered_queryset.aggregate(
+            active_positions=Count('positions', filter=Q(positions__is_completed=False)),
+            completed_positions=Count('positions', filter=Q(positions__is_completed=True)),
+            active_principal=Sum('positions__amount', filter=Q(positions__is_completed=False)),
+            active_earned=Sum('positions__total_earned', filter=Q(positions__is_completed=False)),
+            total_earned=Sum('positions__total_earned'),
+            settled_principal=Sum('positions__amount', filter=Q(positions__is_completed=True)),
+        )
+        accounts = list(context.get('accounts', []))
+        summary = {
+            'users_tracked': filtered_queryset.count(),
+            'active_positions': summary_totals['active_positions'] or 0,
+            'completed_positions': summary_totals['completed_positions'] or 0,
+            'active_principal': summary_totals['active_principal'] or 0,
+            'active_earned': summary_totals['active_earned'] or 0,
+            'total_earned': summary_totals['total_earned'] or 0,
+            'settled_principal': summary_totals['settled_principal'] or 0,
+        }
+        context.update(
+            summary=summary,
+            q=self.request.GET.get('q', '').strip(),
+            status=self.request.GET.get('status', '').strip(),
+            status_choices=[('', 'All ledgers'), ('active', 'Active only'), ('settled', 'Settled only')],
+        )
+        return context
+
+
+class AdminInvestmentLedgerUserView(LoginRequiredMixin, StaffOnlyMixin, TemplateView):
+    template_name = 'admin_investment_ledger_user.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        account = get_object_or_404(
+            InvestmentAccount.objects.select_related('user').prefetch_related(
+                Prefetch(
+                    'positions',
+                    queryset=UserInvestment.objects.select_related('plan', 'wallet').order_by('-start_date'),
+                )
+            ),
+            user_id=self.kwargs['user_id'],
+        )
+        positions = list(account.positions.all())
+        active_positions = [position for position in positions if not position.is_completed]
+        completed_positions = [position for position in positions if position.is_completed]
+        context.update(
+            account=account,
+            positions=positions,
+            active_positions=active_positions,
+            completed_positions=completed_positions,
+            total_invested=sum((position.amount for position in positions), start=Decimal('0')),
+            total_earned=sum((position.total_earned for position in positions), start=Decimal('0')),
+            active_principal=sum((position.amount for position in active_positions), start=Decimal('0')),
+            active_earned=sum((position.total_earned for position in active_positions), start=Decimal('0')),
+            settled_principal=sum((position.amount for position in completed_positions), start=Decimal('0')),
+            settled_earned=sum((position.total_earned for position in completed_positions), start=Decimal('0')),
+        )
+        return context
+
+
 class AdminPlanListView(LoginRequiredMixin, StaffOnlyMixin, ListView):
     template_name = 'admin_plans.html'
     model = InvestmentPlan
@@ -69,7 +200,7 @@ class AdminPlanListView(LoginRequiredMixin, StaffOnlyMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context.update(build_plan_page_context(self.request, plans=context['plans']))
+        context.update(build_plan_page_context(self.request, plans=context['plans'], edit_plan_id=_parse_int(self.request.GET.get('edit'))))
         return context
 
 
@@ -191,6 +322,15 @@ class AdminPlanCreateView(LoginRequiredMixin, StaffOnlyMixin, View):
             messages.success(request, 'Plan created successfully.')
             return redirect(request.POST.get('next') or reverse_lazy('admin_plans'))
         return render(request, 'admin_plans.html', build_plan_page_context(request, create_form=form, open_create_modal=True))
+
+
+class AdminPlanCloneView(LoginRequiredMixin, StaffOnlyMixin, View):
+    @transaction.atomic
+    def post(self, request, pk):
+        source_plan = get_object_or_404(InvestmentPlan, pk=pk)
+        cloned_plan = InvestmentPlan.objects.create(**_clone_plan_fields(source_plan))
+        messages.success(request, f'Plan cloned as {cloned_plan.name}. Review the new version before activating it.')
+        return redirect(f"{reverse_lazy('admin_plans')}?edit={cloned_plan.id}")
 
 
 class AdminPlanUpdateView(LoginRequiredMixin, StaffOnlyMixin, View):

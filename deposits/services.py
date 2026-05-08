@@ -2,18 +2,25 @@ from __future__ import annotations
 
 from decimal import Decimal
 from typing import Any
+import uuid
 
 import requests
+from django.core.cache import cache
 
 from deposits.models import Deposit
 from payments.models import CryptoCurrency
 from django.utils import timezone
 from datetime import timedelta
+from django.db import transaction
 from settingsconfig.utils import get_setting
 
 
 class ProviderError(Exception):
     pass
+
+
+DEPOSIT_CONFIRMATION_LOCK_PREFIX = 'deposit_confirmation_lock:'
+DEPOSIT_CONFIRMATION_LOCK_TTL = 120
 
 
 def _blockcypher_base(symbol: str) -> str:
@@ -138,31 +145,45 @@ def refresh_confirmations(deposit: Deposit) -> bool:
     if not deposit.transaction_hash:
         return False
 
-    result = verify_transaction(deposit.crypto.symbol, deposit.transaction_hash, deposit.pay_address)
-    deposit.verification_payload = result
-    deposit.confirmations = int(result.get('confirmations') or 0)
-    deposit.last_checked_at = timezone.now()
-    deposit.check_attempts += 1
+    lock_key = f"{DEPOSIT_CONFIRMATION_LOCK_PREFIX}{deposit.pk}"
+    lock_token = uuid.uuid4().hex
+    if not cache.add(lock_key, lock_token, timeout=DEPOSIT_CONFIRMATION_LOCK_TTL):
+        return False
 
-    matched = bool(result.get('matched'))
-    if matched and deposit.confirmations >= deposit.target_confirmations:
-        deposit.status = 'completed'
-        deposit.completed_at = deposit.completed_at or timezone.now()
-    elif deposit.check_attempts >= deposit.max_check_attempts:
-        deposit.status = 'rejected'
-    else:
-        deposit.status = 'confirming'
-        _schedule_next_check(deposit)
+    try:
+        result = verify_transaction(deposit.crypto.symbol, deposit.transaction_hash, deposit.pay_address)
+        with transaction.atomic():
+            locked = Deposit.objects.select_for_update().get(pk=deposit.pk)
+            if locked.status in {'completed', 'rejected'} or not locked.transaction_hash:
+                return False
 
-    deposit.save(
-        update_fields=[
-            'verification_payload',
-            'confirmations',
-            'last_checked_at',
-            'check_attempts',
-            'next_check_at',
-            'status',
-            'completed_at',
-        ]
-    )
-    return deposit.status == 'completed'
+            locked.verification_payload = result
+            locked.confirmations = int(result.get('confirmations') or 0)
+            locked.last_checked_at = timezone.now()
+            locked.check_attempts += 1
+
+            matched = bool(result.get('matched'))
+            if matched and locked.confirmations >= locked.target_confirmations:
+                locked.status = 'completed'
+                locked.completed_at = locked.completed_at or timezone.now()
+            elif locked.check_attempts >= locked.max_check_attempts:
+                locked.status = 'rejected'
+            else:
+                locked.status = 'confirming'
+                _schedule_next_check(locked)
+
+            locked.save(
+                update_fields=[
+                    'verification_payload',
+                    'confirmations',
+                    'last_checked_at',
+                    'check_attempts',
+                    'next_check_at',
+                    'status',
+                    'completed_at',
+                ]
+            )
+            return locked.status == 'completed'
+    finally:
+        if cache.get(lock_key) == lock_token:
+            cache.delete(lock_key)

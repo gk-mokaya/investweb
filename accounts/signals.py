@@ -20,8 +20,10 @@ def create_profile_wallet_bonus(sender, instance: User, created: bool, **kwargs)
     UserProfile.objects.create(user=instance)
 
     from wallets.services import credit_wallet, create_primary_wallet
+    from investments.services import get_investment_account
 
     wallet = create_primary_wallet(instance, name='Primary Wallet')
+    get_investment_account(instance)
 
     bonus_amount = get_setting_decimal('WELCOME_BONUS', default='50')
     if bonus_amount > 0:

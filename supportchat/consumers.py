@@ -1,7 +1,7 @@
 from urllib.parse import parse_qs
 
-from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
+from channels.db import database_sync_to_async
 from django.contrib.auth.models import AnonymousUser
 
 from supportchat.models import Conversation
@@ -67,7 +67,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             'message': event['payload'],
         })
 
-    @sync_to_async
+    @database_sync_to_async
     def _get_conversation(self):
         try:
             conversation = Conversation.objects.select_related('user').get(pk=self.conversation_id)
@@ -82,7 +82,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             return conversation
         return None
 
-    @sync_to_async
+    @database_sync_to_async
     def _create_message(self, text):
         user = self.scope.get('user')
         sender_user = user if user and getattr(user, 'is_authenticated', False) else None
@@ -90,6 +90,6 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         message = append_message(self.conversation, sender_role=sender_role, content=text, sender_user=sender_user)
         return message
 
-    @sync_to_async
+    @database_sync_to_async
     def _mark_read(self):
         mark_conversation_read(self.conversation, 'admin' if self.is_staff else 'client')

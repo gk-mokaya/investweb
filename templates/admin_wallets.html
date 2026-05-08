@@ -50,9 +50,9 @@
             <td data-label="User">{{ wallet.user.username }}</td>
             <td data-label="Name">{{ wallet.name }}</td>
             <td data-label="Type">{{ wallet.get_wallet_type_display }}</td>
-            <td data-label="Main">{{ wallet.main_balance }}</td>
-            <td data-label="Bonus">{{ wallet.bonus_balance }}</td>
-            <td data-label="Profit">{{ wallet.profit_balance }}</td>
+            <td data-label="Main">{{ wallet.main_balance|money }}</td>
+            <td data-label="Bonus">{{ wallet.bonus_balance|money }}</td>
+            <td data-label="Profit">{{ wallet.profit_balance|money }}</td>
             <td data-label="Status">
               {% if wallet.is_active %}
                 <span class="badge success">Active</span>

@@ -42,7 +42,7 @@
         <tr>
           <th>Name</th>
           <th>Tier</th>
-          <th>ROI</th>
+          <th>Total Profit (%)</th>
           <th>Duration</th>
           <th>Status</th>
           <th>Actions</th>
@@ -51,10 +51,13 @@
       <tbody>
         {% for plan in plans %}
           <tr>
-            <td data-label="Name">{{ plan.name }}</td>
+            <td data-label="Name">
+              {{ plan.name }}
+              <span class="badge info">v{{ plan.version_number }}</span>
+            </td>
             <td data-label="Tier">{{ plan.get_plan_tier_display }}</td>
-            <td data-label="ROI">{{ plan.daily_roi }}%</td>
-            <td data-label="Duration">{{ plan.duration_days }} days</td>
+            <td data-label="Total Profit (%)">{{ plan.total_return|pct }}</td>
+            <td data-label="Duration">{{ plan.duration_days|number }} days</td>
             <td data-label="Status">
               {% if plan.is_active %}
                 <span class="badge success">Active</span>
@@ -70,6 +73,12 @@
                 <button class="icon-pill" data-modal-open="#planEdit{{ plan.id }}" type="button">
                   <svg class="icon sm"><use href="#icon-edit"></use></svg>
                 </button>
+                <form method="post" action="{% url 'admin_plan_clone' plan.id %}">
+                  {% csrf_token %}
+                  <button class="icon-pill" type="submit" title="Clone as new version">
+                    <svg class="icon sm"><use href="#icon-clipboard"></use></svg>
+                  </button>
+                </form>
                 <form method="post" action="{% url 'admin_plan_delete' plan.id %}">
                   {% csrf_token %}
                   <button class="icon-pill" type="submit">
@@ -114,7 +123,7 @@
           {% include "partials/form_field.html" with field=create_form.plan_tier %}
           {% include "partials/form_field.html" with field=create_form.min_amount %}
           {% include "partials/form_field.html" with field=create_form.max_amount %}
-          {% include "partials/form_field.html" with field=create_form.daily_roi %}
+          {% include "partials/form_field.html" with field=create_form.total_return %}
           {% include "partials/form_field.html" with field=create_form.duration_days %}
           {% include "partials/form_field.html" with field=create_form.risk_level %}
           {% include "partials/form_field.html" with field=create_form.payout_frequency %}
@@ -172,7 +181,7 @@
             {% include "partials/form_field.html" with field=form.plan_tier %}
             {% include "partials/form_field.html" with field=form.min_amount %}
             {% include "partials/form_field.html" with field=form.max_amount %}
-            {% include "partials/form_field.html" with field=form.daily_roi %}
+            {% include "partials/form_field.html" with field=form.total_return %}
             {% include "partials/form_field.html" with field=form.duration_days %}
             {% include "partials/form_field.html" with field=form.risk_level %}
             {% include "partials/form_field.html" with field=form.payout_frequency %}
@@ -224,28 +233,40 @@
           <div class="info-chip-value">{{ plan.name }}</div>
         </div>
         <div class="info-chip">
+          <div class="info-chip-label">Version</div>
+          <div class="info-chip-value">{{ plan.version_label }}</div>
+        </div>
+        <div class="info-chip">
           <div class="info-chip-label">Tier</div>
           <div class="info-chip-value">{{ plan.get_plan_tier_display }}</div>
         </div>
         <div class="info-chip">
-          <div class="info-chip-label">Daily ROI</div>
-          <div class="info-chip-value">{{ plan.daily_roi }}%</div>
+          <div class="info-chip-label">Total Profit (%)</div>
+          <div class="info-chip-value">{{ plan.total_return|pct }}</div>
         </div>
         <div class="info-chip">
           <div class="info-chip-label">Duration</div>
-          <div class="info-chip-value">{{ plan.duration_days }} days</div>
+          <div class="info-chip-value">{{ plan.duration_days|number }} days</div>
         </div>
         <div class="info-chip">
           <div class="info-chip-label">Min Amount</div>
-          <div class="info-chip-value">{{ plan.min_amount }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</div>
+          <div class="info-chip-value">{{ plan.min_amount|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</div>
         </div>
         <div class="info-chip">
           <div class="info-chip-label">Max Amount</div>
-          <div class="info-chip-value">{% if plan.max_amount %}{{ plan.max_amount }}{% else %}No limit{% endif %}</div>
+          <div class="info-chip-value">{% if plan.max_amount %}{{ plan.max_amount|money }}{% else %}No limit{% endif %}</div>
         </div>
         <div class="info-chip">
-          <div class="info-chip-label">Total Return</div>
-          <div class="info-chip-value">{{ plan.total_return }}%</div>
+          <div class="info-chip-label">Daily Growth (%)</div>
+          <div class="info-chip-value">{{ plan.daily_roi|pct }}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Management Fee (%)</div>
+          <div class="info-chip-value">{{ plan.management_fee_pct|pct }}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Early Withdrawal Fee (%)</div>
+          <div class="info-chip-value">{{ plan.early_withdrawal_fee_pct|pct }}</div>
         </div>
         <div class="info-chip">
           <div class="info-chip-label">Risk</div>
@@ -255,6 +276,12 @@
           <div class="info-chip-label">Liquidity</div>
           <div class="info-chip-value">{{ plan.liquidity_terms }}</div>
         </div>
+        {% if plan.source_plan %}
+        <div class="info-chip">
+          <div class="info-chip-label">Based on</div>
+          <div class="info-chip-value">{{ plan.source_plan.name }}</div>
+        </div>
+        {% endif %}
       </div>
     </div>
       <div class="modal-footer">

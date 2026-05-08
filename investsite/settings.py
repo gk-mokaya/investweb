@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+from urllib.parse import urlparse, unquote
 import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -21,12 +22,80 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-&*%kk26%+jr2#!8lo5k+58ato5$@7a%!k6am6i$88na&)3-ssd'
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-dev-only-change-me')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+def _env_bool(name: str, default: bool = False) -> bool:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {'1', 'true', 'yes', 'on'}
 
-ALLOWED_HOSTS = ['*']
+def _env_list(name: str, default: list[str] | None = None) -> list[str]:
+    value = os.environ.get(name)
+    if value is None or not value.strip():
+        return list(default or [])
+    return [item.strip() for item in value.split(',') if item.strip()]
+
+
+def _build_database_settings() -> dict:
+    database_url = os.environ.get('DATABASE_URL') or os.environ.get('DJANGO_DATABASE_URL')
+    if database_url:
+        parsed = urlparse(database_url)
+        scheme = parsed.scheme.lower()
+        if scheme in {'postgres', 'postgresql', 'postgresql+psycopg', 'postgresql_psycopg'}:
+            return {
+                'default': {
+                    'ENGINE': 'django.db.backends.postgresql',
+                    'NAME': parsed.path.lstrip('/'),
+                    'USER': unquote(parsed.username or ''),
+                    'PASSWORD': unquote(parsed.password or ''),
+                    'HOST': parsed.hostname or '',
+                    'PORT': str(parsed.port or ''),
+                    'CONN_MAX_AGE': int(os.environ.get('DB_CONN_MAX_AGE', '60')),
+                    'OPTIONS': {
+                        'connect_timeout': int(os.environ.get('DB_CONNECT_TIMEOUT', '5')),
+                    },
+                }
+            }
+        if scheme == 'sqlite':
+            return {
+                'default': {
+                    'ENGINE': 'django.db.backends.sqlite3',
+                    'NAME': parsed.path.lstrip('/') or (BASE_DIR / 'db.sqlite3'),
+                    'CONN_MAX_AGE': int(os.environ.get('DB_CONN_MAX_AGE', '0')),
+                }
+            }
+
+    postgres_name = os.environ.get('POSTGRES_DB') or os.environ.get('DB_NAME')
+    if postgres_name:
+        return {
+            'default': {
+                'ENGINE': 'django.db.backends.postgresql',
+                'NAME': postgres_name,
+                'USER': os.environ.get('POSTGRES_USER') or os.environ.get('DB_USER', ''),
+                'PASSWORD': os.environ.get('POSTGRES_PASSWORD') or os.environ.get('DB_PASSWORD', ''),
+                'HOST': os.environ.get('POSTGRES_HOST') or os.environ.get('DB_HOST', ''),
+                'PORT': os.environ.get('POSTGRES_PORT') or os.environ.get('DB_PORT', '5432'),
+                'CONN_MAX_AGE': int(os.environ.get('DB_CONN_MAX_AGE', '60')),
+                'OPTIONS': {
+                    'connect_timeout': int(os.environ.get('DB_CONNECT_TIMEOUT', '5')),
+                },
+            }
+        }
+
+    return {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+            'CONN_MAX_AGE': int(os.environ.get('DB_CONN_MAX_AGE', '0')),
+        }
+    }
+
+
+DEBUG = _env_bool('DJANGO_DEBUG', True)
+
+ALLOWED_HOSTS = _env_list('DJANGO_ALLOWED_HOSTS', ['*'] if DEBUG else ['localhost', '127.0.0.1', '[::1]'])
 
 
 # Application definition
@@ -92,6 +161,9 @@ TEMPLATES = [
                 'kyc.context_processors.kyc_status',
                 'accounts.context_processors.notifications',
             ],
+            'builtins': [
+                'accounts.templatetags.formatters',
+            ],
         },
     },
 ]
@@ -102,12 +174,7 @@ WSGI_APPLICATION = 'investsite.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
+DATABASES = _build_database_settings()
 
 
 # Password validation
@@ -134,11 +201,15 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'Africa/Nairobi'
+# Use Kenyan time by default across the app and background jobs.
+GLOBAL_TIME_ZONE = os.environ.get('DJANGO_TIME_ZONE', 'Africa/Nairobi')
+TIME_ZONE = GLOBAL_TIME_ZONE
 
 USE_I18N = True
 
 USE_TZ = True
+
+CSRF_TRUSTED_ORIGINS = _env_list('DJANGO_CSRF_TRUSTED_ORIGINS', [])
 
 
 # Static files (CSS, JavaScript, Images)
@@ -159,22 +230,56 @@ LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'dashboard'
 LOGOUT_REDIRECT_URL = 'login'
 
+REDIS_URL = os.environ.get('REDIS_URL') or os.environ.get('CACHE_URL')
+
+if REDIS_URL:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': REDIS_URL,
+        }
+    }
+    SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
+    SESSION_CACHE_ALIAS = 'default'
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                'hosts': [REDIS_URL],
+            },
+        }
+    }
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'investsite-local',
+        }
+    }
+    SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        }
+    }
+
 # Session hardening
-SESSION_COOKIE_AGE = 600  # 10 minutes
-SESSION_SAVE_EVERY_REQUEST = True
+SESSION_COOKIE_AGE = int(os.environ.get('SESSION_COOKIE_AGE', '3600'))
+SESSION_SAVE_EVERY_REQUEST = False
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SECURE = not DEBUG
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https') if _env_bool('DJANGO_SECURE_PROXY_SSL_HEADER', False) else None
 
 CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', CELERY_BROKER_URL)
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = TIME_ZONE
+CELERY_TIMEZONE = GLOBAL_TIME_ZONE
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

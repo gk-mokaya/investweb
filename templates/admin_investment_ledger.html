@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block title %}Investment Ledger | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
+
+{% block content %}
+<div class="section-card ledger-compact">
+  <div class="section-header">
+    <div>
+      <div class="section-title">Investment Ledger</div>
+      <div class="card-muted">Review active principal, accrued profit, and settled positions by user.</div>
+    </div>
+    <div class="section-actions">
+      <a class="btn ghost" href="{% url 'admin_dashboard' %}">Back to dashboard</a>
+    </div>
+  </div>
+
+  <div class="queue-summary-grid platform-summary-grid">
+    <div class="queue-summary-card no-link">
+      <div class="queue-summary-top">
+        <span class="queue-summary-label">Users tracked</span>
+        <span class="badge info">{{ summary.users_tracked|default:0|number }}</span>
+      </div>
+      <div class="queue-summary-note">Users with one or more ledger accounts.</div>
+    </div>
+    <div class="queue-summary-card no-link">
+      <div class="queue-summary-top">
+        <span class="queue-summary-label">Active principal</span>
+        <span class="badge warning">{{ summary.active_principal|default:0|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</span>
+      </div>
+      <div class="queue-summary-note">Capital still locked inside active positions.</div>
+    </div>
+    <div class="queue-summary-card no-link">
+      <div class="queue-summary-top">
+        <span class="queue-summary-label">Accrued profit</span>
+        <span class="badge success">{{ summary.active_earned|default:0|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</span>
+      </div>
+      <div class="queue-summary-note">Profit earned on positions that are still active.</div>
+    </div>
+    <div class="queue-summary-card no-link">
+      <div class="queue-summary-top">
+        <span class="queue-summary-label">Settled positions</span>
+        <span class="badge info">{{ summary.completed_positions|default:0|number }}</span>
+      </div>
+      <div class="queue-summary-note">Positions that have finished and been released.</div>
+    </div>
+  </div>
+</div>
+
+<div class="section-card ledger-compact">
+  <div class="section-header">
+    <div>
+      <div class="section-title">Ledger overview</div>
+      <div class="card-muted">Search by user and inspect the full investment trail.</div>
+    </div>
+  </div>
+
+  <div class="table-wrapper">
+    <table class="table">
+      <thead>
+        <tr>
+          <th colspan="7">
+            <form class="filters-bar filters-inline" method="get" data-auto-submit="true">
+              <input class="filters-search" type="text" name="q" value="{{ q }}" placeholder="Search by username or email" />
+              <select class="filter-chip" name="status">
+                {% for value, label in status_choices %}
+                  <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+              <div class="filters-actions">
+                <a class="btn ghost" href="{% url 'admin_investment_ledger' %}">Clear</a>
+              </div>
+            </form>
+          </th>
+        </tr>
+        <tr>
+          <th>User</th>
+          <th>Active Principal</th>
+          <th>Accrued Profit</th>
+          <th>Settled Principal</th>
+          <th>Total Earned</th>
+          <th>Positions</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for account in accounts %}
+          <tr>
+            <td data-label="User">
+              <div class="list-stack" style="gap:4px;">
+                <strong>{{ account.user.username }}</strong>
+                <span class="card-muted">{{ account.user.email|default:'No email set' }}</span>
+              </div>
+            </td>
+            <td data-label="Active Principal">{{ account.active_principal_total|default:0|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</td>
+            <td data-label="Accrued Profit">{{ account.active_earned_total|default:0|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</td>
+            <td data-label="Settled Principal">{{ account.settled_principal_total|default:0|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</td>
+            <td data-label="Total Earned">{{ account.total_earned_total|default:0|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</td>
+            <td data-label="Positions">
+              <span class="badge info">{{ account.active_positions_total|default:0|number }} active</span>
+              <span class="badge">{{ account.completed_positions_total|default:0|number }} settled</span>
+            </td>
+            <td data-label="Actions">
+              <div class="table-actions">
+                <a class="btn small primary" href="{% url 'admin_investment_ledger_user' account.user.id %}">Open history</a>
+                <button class="btn small ghost" type="button" data-modal-open="#ledger{{ account.id }}">View ledger</button>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="7">
+              <div class="empty-state">No investment ledgers found.</div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% include "partials/pagination.html" %}
+</div>
+
+{% for account in accounts %}
+  <div class="modal modal-mobile-full" id="ledger{{ account.id }}">
+    <div class="modal-backdrop" data-modal-close></div>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title">{{ account.user.username }} ledger</div>
+        <div class="table-actions">
+          <a class="btn small primary" href="{% url 'admin_investment_ledger_user' account.user.id %}">Open history</a>
+          <button class="modal-close" type="button" data-modal-close><svg class="icon sm"><use href="#icon-x"></use></svg></button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div class="plan-detail-grid investment-detail-grid">
+          <div class="detail-item">
+            <div class="detail-label">Active principal</div>
+            <div class="detail-value">{{ account.active_principal_total|default:0|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Accrued profit</div>
+            <div class="detail-value">{{ account.active_earned_total|default:0|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Settled principal</div>
+            <div class="detail-value">{{ account.settled_principal_total|default:0|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Completed positions</div>
+            <div class="detail-value">{{ account.completed_positions_total|default:0|number }}</div>
+          </div>
+        </div>
+
+        <div class="table-wrapper" style="margin-top:16px;">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Plan</th>
+                <th>Amount</th>
+                <th>Earned</th>
+                <th>Status</th>
+                <th>Maturity</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for position in account.positions.all %}
+                <tr>
+                  <td data-label="Plan">{{ position.effective_plan_name }}</td>
+                  <td data-label="Amount">{{ position.amount|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</td>
+                  <td data-label="Earned">{{ position.total_earned|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</td>
+                  <td data-label="Status">
+                    {% if position.is_completed %}
+                      <span class="badge success">Settled</span>
+                    {% else %}
+                      <span class="badge info">Active</span>
+                    {% endif %}
+                  </td>
+                  <td data-label="Maturity">{{ position.end_date|date:"M d, Y" }}</td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="5"><div class="empty-state">No positions for this account.</div></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn ghost" type="button" data-modal-close>Close</button>
+      </div>
+    </div>
+  </div>
+{% endfor %}
+{% endblock %}

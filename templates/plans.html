@@ -40,11 +40,11 @@
 
   <div class="plan-grid">
     {% for plan in plans %}
-      <div class="plan-card {{ plan.theme_class }}">
+        <div class="plan-card {{ plan.theme_class }}">
         <div class="plan-header">
           <div>
             <div class="plan-title">{{ plan.name }}</div>
-            <div class="plan-subtitle">{{ plan.daily_roi }}% daily for {{ plan.duration_days }} days</div>
+            <div class="plan-subtitle">{{ plan.effective_total_return }}% total profit over {{ plan.duration_days }} days</div>
             <div class="plan-tier">{{ plan.get_plan_tier_display }}</div>
           </div>
           {% if plan.is_active %}
@@ -59,7 +59,7 @@
         </div>
         <div class="plan-metrics">
           <div class="plan-metric">Max: {% if plan.max_amount %}{{ plan.max_amount }}{% else %}No limit{% endif %}</div>
-          <div class="plan-metric">Total return: {{ plan.total_return }}%</div>
+          <div class="plan-metric">Total return: {{ plan.effective_total_return }}%</div>
           <div class="plan-metric">Risk: {{ plan.risk_level }}</div>
           <div class="plan-metric">Liquidity: {{ plan.liquidity_terms }}</div>
           <div class="plan-metric">Lock period: {{ plan.lock_period_days }} days</div>
@@ -100,16 +100,16 @@
               <div class="detail-value">{% if plan.max_amount %}{{ plan.max_amount }}{% else %}No limit{% endif %}</div>
             </div>
             <div class="detail-item">
-              <div class="detail-label">Daily ROI</div>
-              <div class="detail-value">{{ plan.daily_roi }}%</div>
+              <div class="detail-label">Total Profit</div>
+              <div class="detail-value">{{ plan.effective_total_return }}%</div>
             </div>
             <div class="detail-item">
               <div class="detail-label">Duration</div>
               <div class="detail-value">{{ plan.duration_days }} days</div>
             </div>
             <div class="detail-item">
-              <div class="detail-label">Total Return</div>
-              <div class="detail-value">{{ plan.total_return }}%</div>
+              <div class="detail-label">Daily Growth</div>
+              <div class="detail-value">{{ plan.effective_daily_roi }}%</div>
             </div>
             <div class="detail-item">
               <div class="detail-label">Risk Level</div>
@@ -149,12 +149,12 @@
               <span class="guide-desc">Allowed investment range for this plan.</span>
             </div>
             <div class="guide-row">
-              <span class="guide-term">Daily ROI</span>
-              <span class="guide-desc">Daily profit rate applied to your principal.</span>
+              <span class="guide-term">Total Profit</span>
+              <span class="guide-desc">Gross profit percentage for the full plan period before fees.</span>
             </div>
             <div class="guide-row">
-              <span class="guide-term">Total Return</span>
-              <span class="guide-desc">Daily ROI x Duration (gross return before fees).</span>
+              <span class="guide-term">Daily Growth</span>
+              <span class="guide-desc">Total profit divided by duration to produce the daily growth rate.</span>
             </div>
             <div class="guide-row">
               <span class="guide-term">Payout Frequency</span>
@@ -347,7 +347,7 @@
           {% include "partials/form_field.html" with field=plan_form.plan_tier %}
           {% include "partials/form_field.html" with field=plan_form.min_amount %}
           {% include "partials/form_field.html" with field=plan_form.max_amount %}
-          {% include "partials/form_field.html" with field=plan_form.daily_roi %}
+          {% include "partials/form_field.html" with field=plan_form.total_return %}
           {% include "partials/form_field.html" with field=plan_form.duration_days %}
           {% include "partials/form_field.html" with field=plan_form.risk_level %}
           {% include "partials/form_field.html" with field=plan_form.payout_frequency %}

@@ -797,7 +797,18 @@
 
   function formatMoney(value, currency) {
     var amount = Number.isFinite(value) ? value : 0;
-    return amount.toFixed(2) + ' ' + currency;
+    return new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount) + ' ' + currency;
+  }
+
+  function formatPercent(value) {
+    var amount = Number.isFinite(value) ? value : 0;
+    return new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount) + '%';
   }
 
   function formatDate(value) {
@@ -860,23 +871,24 @@
     };
 
     if (plan) {
-      var dailyRoi = parseNumber(plan.daily_roi);
+      var totalReturnPct = parseNumber(plan.total_return);
       var duration = Math.max(0, Math.floor(parseNumber(plan.duration_days)));
-      var dailyProfit = amount ? (amount * dailyRoi) / 100 : 0;
-      var grossProfit = amount ? dailyProfit * duration : 0;
+      var dailyGrowthPct = duration ? totalReturnPct / duration : 0;
+      var dailyProfit = amount ? (amount * dailyGrowthPct) / 100 : 0;
+      var grossProfit = amount ? (amount * totalReturnPct) / 100 : 0;
       var totalPayout = amount ? amount + grossProfit : 0;
       setText('[data-overview-name]', plan.name || 'Selected plan');
       setText('[data-overview-daily]', amount ? formatMoney(dailyProfit, currency) : '-');
       setText('[data-overview-gross]', amount ? formatMoney(grossProfit, currency) : '-');
       setText('[data-overview-payout]', amount ? formatMoney(totalPayout, currency) : '-');
       setText('[data-overview-duration]', (plan.duration_days || '-') + ' days');
-      setText('[data-overview-minmax]', (plan.min_amount || '-') + ' ' + currency + ' / ' + (plan.max_amount ? plan.max_amount + ' ' + currency : 'No limit'));
-      setText('[data-overview-roi]', (plan.daily_roi || '0') + '%');
+      setText('[data-overview-minmax]', (plan.min_amount ? formatMoney(parseNumber(plan.min_amount), currency) : '-') + ' / ' + (plan.max_amount ? formatMoney(parseNumber(plan.max_amount), currency) : 'No limit'));
+      setText('[data-overview-roi]', formatPercent(parseNumber(plan.total_return)));
       setText('[data-overview-frequency]', plan.payout_frequency || '-');
       setText('[data-overview-liquidity]', plan.liquidity_terms || '-');
       setText('[data-overview-lock]', plan.lock_period_days ? plan.lock_period_days + ' days' : 'None');
       setText('[data-overview-risk]', plan.risk_level || '-');
-      setText('[data-overview-fees]', (plan.management_fee_pct || '0') + '% mgmt / ' + (plan.early_withdrawal_fee_pct || '0') + '% early');
+      setText('[data-overview-fees]', formatPercent(parseNumber(plan.management_fee_pct)) + ' mgmt / ' + formatPercent(parseNumber(plan.early_withdrawal_fee_pct)) + ' early');
       setText('[data-overview-protection]', plan.capital_protection ? 'Yes' : 'No');
     } else {
       setText('[data-overview-name]', 'Select a plan to preview returns.');
@@ -1037,7 +1049,9 @@
       if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return;
 
       var amount = parseNumber(table.getAttribute('data-amount'));
-      var roi = parseNumber(table.getAttribute('data-roi'));
+      var totalReturnPct = parseNumber(table.getAttribute('data-total-return'));
+      var durationDays = Math.max(1, Math.floor(parseNumber(table.getAttribute('data-duration-days'))));
+      var frequency = (table.getAttribute('data-frequency') || 'daily').toLowerCase();
       var feePct = parseNumber(table.getAttribute('data-fee'));
       var currency = table.getAttribute('data-currency') || 'USD';
       var isCompleted = table.getAttribute('data-completed') === 'true';
@@ -1054,9 +1068,13 @@
         earnedMap = {};
       }
 
-      var dailyProfit = amount ? (amount * roi) / 100 : 0;
-      var feeAmount = dailyProfit ? dailyProfit * (feePct / 100) : 0;
-      var netProfit = dailyProfit - feeAmount;
+      var intervalDays = 1;
+      if (frequency === 'weekly') {
+        intervalDays = 7;
+      } else if (frequency === 'monthly') {
+        intervalDays = 30;
+      }
+      var dailyGrowthPct = totalReturnPct / durationDays;
 
       var today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -1065,17 +1083,35 @@
       var cumulative = 0;
       var iter = 0;
       var cursor = new Date(startDate);
+      var dueDates = [];
+      cursor.setDate(cursor.getDate() + intervalDays);
       while (cursor <= endDate && iter < 2000) {
-        var cursorKey = cursor.toISOString().slice(0, 10);
-        var hasEarned = Object.prototype.hasOwnProperty.call(earnedMap, cursorKey);
-        var dayProfit = hasEarned ? earnedMap[cursorKey] : netProfit;
+        dueDates.push(new Date(cursor));
+        cursor.setDate(cursor.getDate() + intervalDays);
+        iter += 1;
+      }
+      if (!dueDates.length || dueDates[dueDates.length - 1].getTime() !== endDate.getTime()) {
+        dueDates.push(new Date(endDate));
+      }
+
+      var periodStart = new Date(startDate);
+      iter = 0;
+      dueDates.forEach(function (dueDate) {
+        if (iter >= 2000) return;
+        var dueKey = dueDate.toISOString().slice(0, 10);
+        var periodDays = Math.max(1, Math.round((dueDate.getTime() - periodStart.getTime()) / 86400000));
+        var grossProfit = amount ? (amount * dailyGrowthPct * periodDays) / 100 : 0;
+        var feeAmount = grossProfit ? grossProfit * (feePct / 100) : 0;
+        var payoutAmount = grossProfit - feeAmount;
+        var hasEarned = Object.prototype.hasOwnProperty.call(earnedMap, dueKey);
+        var dayProfit = hasEarned ? earnedMap[dueKey] : payoutAmount;
         cumulative += dayProfit;
         var status = hasEarned ? 'Earned' : 'Pending';
         var isPending = !hasEarned;
-        if (!hasEarned && cursor <= today) {
+        if (!hasEarned && dueDate <= today) {
           status = 'Pending';
         }
-        if (hasEarned && isCompleted && cursor.getTime() === endDate.getTime()) {
+        if (hasEarned && isCompleted && dueDate.getTime() === endDate.getTime()) {
           status = 'Completed';
         }
         var progressWidth = isPending ? 0 : 100;
@@ -1087,8 +1123,8 @@
         }
         rows.push(
           '<tr class=\"schedule-row ' + statusClass + '\">' +
-            '<td data-label=\"Date\">' + formatDate(cursor) + '</td>' +
-            '<td data-label=\"Daily Profit\">' + formatMoney(dayProfit, currency) + '</td>' +
+            '<td data-label=\"Date\">' + formatDate(dueDate) + '</td>' +
+            '<td data-label=\"Payout Amount\">' + formatMoney(dayProfit, currency) + '</td>' +
             '<td data-label=\"Cumulative Profit\">' + formatMoney(cumulative, currency) + '</td>' +
             '<td data-label=\"Status\">' +
               '<span class=\"schedule-status-badge ' + statusClass + '\">' + status + '</span>' +
@@ -1096,9 +1132,9 @@
             '</td>' +
           '</tr>'
         );
-        cursor.setDate(cursor.getDate() + 1);
+        periodStart = new Date(dueDate);
         iter += 1;
-      }
+      });
 
       if (!rows.length) {
         rows.push('<tr><td colspan=\"4\"><div class=\"empty-state\">No schedule data available.</div></td></tr>');

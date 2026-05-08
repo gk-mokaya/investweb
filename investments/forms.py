@@ -22,9 +22,9 @@ class CreateInvestmentForm(forms.Form):
                 'name': plan.name,
                 'min_amount': str(plan.min_amount),
                 'max_amount': str(plan.max_amount) if plan.max_amount else '',
-                'daily_roi': str(plan.daily_roi),
+                'daily_roi': str(plan.effective_daily_roi),
+                'total_return': str(plan.effective_total_return),
                 'duration_days': plan.duration_days,
-                'total_return': str(plan.total_return),
                 'payout_frequency': plan.payout_frequency,
                 'liquidity_terms': plan.liquidity_terms,
                 'lock_period_days': plan.lock_period_days,
@@ -39,17 +39,20 @@ class CreateInvestmentForm(forms.Form):
         if user:
             wallets = Wallet.objects.filter(
                 user=user,
-                wallet_type__in=['primary', 'trading'],
+                wallet_type='primary',
                 is_active=True,
             ).order_by('-is_default', 'created_at')
             self.fields['wallet'].queryset = wallets
             self.fields['wallet'].empty_label = 'Select wallet'
+            self.fields['wallet'].label = 'Funding Wallet'
             self.fields['wallet'].label_from_instance = lambda obj: f"{obj.name} - {obj.get_wallet_type_display()}"
             balances = {str(w.id): str(w.total_balance) for w in wallets}
             self.fields['wallet'].widget.attrs.update({
                 'data-wallet-balances': json.dumps(balances),
                 'data-balance-target': 'investmentWalletBalance',
             })
+        self.fields['amount'].label = 'Investment Amount'
+        self.fields['amount'].help_text = 'Currency amount that will be locked in the investment ledger.'
         self.fields['amount'].widget.attrs.update({
             'placeholder': 'Enter amount',
             'min': '1',
@@ -66,7 +69,7 @@ class InvestmentPlanForm(forms.ModelForm):
             'plan_tier',
             'min_amount',
             'max_amount',
-            'daily_roi',
+            'total_return',
             'duration_days',
             'description',
             'risk_level',
@@ -78,3 +81,17 @@ class InvestmentPlanForm(forms.ModelForm):
             'early_withdrawal_fee_pct',
             'is_active',
         )
+        labels = {
+            'total_return': 'Total Profit (%)',
+            'min_amount': 'Minimum Amount',
+            'max_amount': 'Maximum Amount',
+            'management_fee_pct': 'Management Fee (%)',
+            'early_withdrawal_fee_pct': 'Early Withdrawal Fee (%)',
+        }
+        help_texts = {
+            'total_return': 'Enter the total profit percentage for the full investment period.',
+            'min_amount': 'Currency amount required to start this plan.',
+            'max_amount': 'Currency cap for this plan, if any.',
+            'management_fee_pct': 'Percentage deducted from each profit payout.',
+            'early_withdrawal_fee_pct': 'Percentage charged only if the user exits early.',
+        }

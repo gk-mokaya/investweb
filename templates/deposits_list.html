@@ -22,7 +22,7 @@
       </div>
       <span class="badge info">Wallet</span>
     </div>
-    <div class="metric-value">{{ WALLET_SUMMARY.total_balance|default:'0' }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</div>
+    <div class="metric-value">{{ WALLET_SUMMARY.total_balance|default:'0'|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</div>
   </div>
 </div>
 

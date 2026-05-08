@@ -59,6 +59,7 @@ def get_or_create_guest_conversation(*, guest_name='', guest_email='', token=Non
 
 @transaction.atomic
 def append_message(conversation, *, sender_role, content='', attachment=None, sender_user=None):
+    conversation = Conversation.objects.select_for_update().get(pk=conversation.pk)
     message = Message.objects.create(
         conversation=conversation,
         sender_role=sender_role,
@@ -80,6 +81,7 @@ def append_message(conversation, *, sender_role, content='', attachment=None, se
 
 @transaction.atomic
 def mark_conversation_read(conversation, role):
+    conversation = Conversation.objects.select_for_update().get(pk=conversation.pk)
     update_fields = []
     if role == 'admin' and conversation.unread_admin_count:
         conversation.unread_admin_count = 0

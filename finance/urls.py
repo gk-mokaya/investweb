@@ -2,10 +2,13 @@ from django.urls import path
 
 from finance.views import (
     AdminPlanCreateView,
+    AdminPlanCloneView,
     AdminPlanDeleteView,
     AdminPlanListView,
     AdminPlanUpdateView,
     AdminSiteSettingsView,
+    AdminInvestmentLedgerView,
+    AdminInvestmentLedgerUserView,
     DepositQueueView,
     DepositApproveView,
     DepositRejectView,
@@ -22,8 +25,11 @@ from finance.views import (
 
 
 urlpatterns = [
+    path('investment-ledger/', AdminInvestmentLedgerView.as_view(), name='admin_investment_ledger'),
+    path('investment-ledger/<int:user_id>/', AdminInvestmentLedgerUserView.as_view(), name='admin_investment_ledger_user'),
     path('plans/', AdminPlanListView.as_view(), name='admin_plans'),
     path('plans/new/', AdminPlanCreateView.as_view(), name='admin_plan_create'),
+    path('plans/<int:pk>/clone/', AdminPlanCloneView.as_view(), name='admin_plan_clone'),
     path('plans/<int:pk>/edit/', AdminPlanUpdateView.as_view(), name='admin_plan_edit'),
     path('plans/<int:pk>/delete/', AdminPlanDeleteView.as_view(), name='admin_plan_delete'),
     path('deposits/', DepositQueueView.as_view(), name='admin_pending_deposits'),
