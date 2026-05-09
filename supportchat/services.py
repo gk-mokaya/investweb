@@ -1,5 +1,6 @@
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+from datetime import timedelta
 from django.db import transaction
 from django.utils import timezone
 
@@ -94,6 +95,15 @@ def mark_conversation_read(conversation, role):
 
 
 def serialize_message(message):
+    local_created_at = timezone.localtime(message.created_at)
+    today = timezone.localdate()
+    message_day = local_created_at.date()
+    if message_day == today:
+        day_label = 'Today'
+    elif message_day == today - timedelta(days=1):
+        day_label = 'Yesterday'
+    else:
+        day_label = local_created_at.strftime('%b %d, %Y')
     sender_name = ''
     if message.sender_role == 'admin' and message.sender_user:
         sender_name = message.sender_user.get_full_name() or message.sender_user.username
@@ -117,7 +127,9 @@ def serialize_message(message):
         'attachment_url': attachment_url,
         'attachment_name': attachment_name,
         'created_at': message.created_at.isoformat(),
-        'time_label': timezone.localtime(message.created_at).strftime('%b %d, %H:%M'),
+        'day_label': day_label,
+        'day_key': message_day.isoformat(),
+        'time_label': local_created_at.strftime('%H:%M'),
     }
 
 

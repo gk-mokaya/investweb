@@ -3,18 +3,26 @@
 {% block title %}Pending Deposits | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
 
 {% block content %}
-<div class="section-card">
+<div class="section-card admin-view-shell" data-view-shell data-view-key="admin-pending-deposits">
   <div class="section-header">
     <div>
       <div class="section-title">Deposit reviews</div>
       <div class="card-muted">Review and action incoming deposit requests.</div>
     </div>
     <div class="section-actions">
+      <div class="table-view-toggle" data-view-toggle>
+        <button type="button" class="view-toggle-btn is-active" data-view-mode="table" aria-pressed="true" aria-label="Show table view">
+          <svg class="icon sm"><use href="#icon-list"></use></svg>
+        </button>
+        <button type="button" class="view-toggle-btn" data-view-mode="card" aria-pressed="false" aria-label="Show card view">
+          <svg class="icon sm"><use href="#icon-grid"></use></svg>
+        </button>
+      </div>
       <a class="btn ghost" href="{% url 'admin_dashboard' %}">Dashboard</a>
     </div>
   </div>
 
-  <div class="table-wrapper">
+  <div class="table-wrapper" data-table-view>
     <table class="table">
       <thead>
         <tr>
@@ -94,13 +102,86 @@
       </tbody>
     </table>
   </div>
+
+  <div class="admin-card-view" data-card-view hidden>
+    <form class="filters-bar filters-inline" method="get" data-auto-submit="true">
+      <input class="filters-search" type="text" name="q" value="{{ request.GET.q }}" placeholder="Search user, hash, or sender address" />
+      <select class="filter-chip" name="status">
+        <option value="">All statuses</option>
+        {% for value, label in status_choices %}
+          <option value="{{ value }}" {% if request.GET.status == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <select class="filter-chip" name="crypto">
+        <option value="">All cryptos</option>
+        {% for crypto in crypto_choices %}
+          <option value="{{ crypto.id }}" {% if request.GET.crypto|stringformat:"s" == crypto.id|stringformat:"s" %}selected{% endif %}>
+            {{ crypto.symbol }} ({{ crypto.network }})
+          </option>
+        {% endfor %}
+      </select>
+      <div class="filters-actions">
+        <a class="btn ghost" href="{% url 'admin_pending_deposits' %}">Clear</a>
+      </div>
+    </form>
+
+    <div class="admin-card-view">
+      {% for deposit in deposits %}
+        <article class="admin-record-card">
+          <div class="admin-record-top">
+            <div class="admin-record-title">
+              <strong>{{ deposit.user.username }}</strong>
+              <span>{{ deposit.crypto.symbol }} ({{ deposit.crypto.network }}) · {{ deposit.get_method_display }}</span>
+            </div>
+            <div class="table-actions">
+              <span class="badge info">{{ deposit.amount }}</span>
+              <span class="badge">{{ deposit.get_status_display }}</span>
+            </div>
+          </div>
+          <div class="admin-record-grid">
+            <div class="admin-record-field">
+              <span>Created</span>
+              <strong>{{ deposit.created_at|date:"M d, Y" }}</strong>
+            </div>
+            <div class="admin-record-field">
+              <span>Wallet</span>
+              <strong>{% if deposit.wallet %}{{ deposit.wallet.name }}{% else %}-{% endif %}</strong>
+            </div>
+          </div>
+          <div class="admin-record-actions">
+            <button class="icon-pill" data-modal-open="#adminDepositView{{ deposit.id }}" type="button">
+              <svg class="icon sm"><use href="#icon-eye"></use></svg>
+            </button>
+            {% if deposit.method != 'manual' %}
+              <form method="post" action="{% url 'admin_deposit_verify' deposit.id %}">
+                {% csrf_token %}
+                <button class="btn small ghost" type="submit">Verify</button>
+              </form>
+            {% endif %}
+            <form method="post" action="{% url 'admin_deposit_approve' deposit.id %}">
+              {% csrf_token %}
+              <input type="hidden" name="review_note" value="Approved after manual review." />
+              <button class="btn small success" type="submit">Approve</button>
+            </form>
+            <form method="post" action="{% url 'admin_deposit_reject' deposit.id %}">
+              {% csrf_token %}
+              <input type="hidden" name="review_note" value="Rejected after manual review." />
+              <button class="btn small danger" type="submit">Reject</button>
+            </form>
+          </div>
+        </article>
+      {% empty %}
+        <div class="empty-state">No deposits found.</div>
+      {% endfor %}
+    </div>
+  </div>
   {% include "partials/pagination.html" %}
 </div>
 
 {% for deposit in deposits %}
   <div class="modal modal-mobile-full" id="adminDepositView{{ deposit.id }}">
     <div class="modal-backdrop" data-modal-close></div>
-    <div class="modal-dialog">
+    <div class="modal-dialog compact-details-modal">
       <div class="modal-header">
         <div class="modal-title">Deposit details</div>
         <button class="modal-close" type="button" data-modal-close><svg class="icon sm"><use href="#icon-x"></use></svg></button>

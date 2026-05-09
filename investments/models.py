@@ -1,15 +1,46 @@
 from decimal import Decimal
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils import timezone
 
 
 class InvestmentAccount(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='investment_account')
+    ledger_code = models.CharField(max_length=10, blank=True, default='', editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self) -> str:
-        return f"{self.user.username} - Investment Ledger"
+        return self.ledger_label
+
+    @property
+    def ledger_label(self) -> str:
+        code = self.ledger_code or self._generate_ledger_code(self.created_at or timezone.now())
+        return f"{code} - Investment Ledger"
+
+    @classmethod
+    def _generate_ledger_code(cls, created_at=None) -> str:
+        stamp = (created_at or timezone.now()).strftime('%y-%m')
+        prefix = f'{stamp}-'
+        last_code = (
+            cls.objects.filter(ledger_code__startswith=prefix)
+            .exclude(ledger_code='')
+            .order_by('-ledger_code')
+            .values_list('ledger_code', flat=True)
+            .first()
+        )
+        next_number = 1
+        if last_code:
+            try:
+                next_number = int(last_code.rsplit('-', 1)[-1]) + 1
+            except (IndexError, ValueError):
+                next_number = 1
+        return f'{stamp}-{next_number:04d}'
+
+    def save(self, *args, **kwargs):
+        if not self.ledger_code:
+            self.ledger_code = self._generate_ledger_code(self.created_at or timezone.now())
+        super().save(*args, **kwargs)
 
     @property
     def active_positions(self):

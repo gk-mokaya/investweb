@@ -182,8 +182,8 @@ class StaffChatInboxView(LoginRequiredMixin, StaffOnlyMixin, TemplateView):
             'unread': conversation_qs.filter(unread_admin_count__gt=0).count(),
         }
         context['selected_conversation'] = selected
-        context['selected_messages'] = selected.messages.select_related('sender_user').all() if selected else []
-        context['selected_messages_json'] = json.dumps([serialize_message(message) for message in context['selected_messages']])
+        context['selected_messages'] = [serialize_message(message) for message in selected.messages.select_related('sender_user').all()] if selected else []
+        context['selected_messages_json'] = json.dumps(context['selected_messages'])
         context['selected_conversation_json'] = json.dumps({
             'id': str(selected.id) if selected else '',
             'token': str(selected.public_token) if selected else '',

@@ -21,7 +21,7 @@ class Wallet(models.Model):
     profit_balance = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0'))
     is_default = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
         constraints = [

@@ -40,12 +40,16 @@
 
   <div class="plan-grid">
     {% for plan in plans %}
-        <div class="plan-card {{ plan.theme_class }}">
+      <div class="plan-card {{ plan.theme_class }}">
         <div class="plan-header">
-          <div>
+          <div class="plan-header-copy">
             <div class="plan-title">{{ plan.name }}</div>
-            <div class="plan-subtitle">{{ plan.effective_total_return }}% total profit over {{ plan.duration_days }} days</div>
-            <div class="plan-tier">{{ plan.get_plan_tier_display }}</div>
+            <div class="plan-tag-row">
+              <div class="plan-tier">{{ plan.get_plan_tier_display }}</div>
+              {% if plan.capital_protection %}
+                <span class="plan-tag">Capital protected</span>
+              {% endif %}
+            </div>
           </div>
           {% if plan.is_active %}
             <span class="plan-pill">Active</span>
@@ -54,15 +58,30 @@
           {% endif %}
         </div>
         <div class="plan-amount">
-          <div class="plan-amount-label">Minimum</div>
+          <div class="plan-amount-label">Minimum investment</div>
           <div class="plan-amount-value">{{ plan.min_amount }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</div>
         </div>
-        <div class="plan-metrics">
-          <div class="plan-metric">Max: {% if plan.max_amount %}{{ plan.max_amount }}{% else %}No limit{% endif %}</div>
-          <div class="plan-metric">Total return: {{ plan.effective_total_return }}%</div>
-          <div class="plan-metric">Risk: {{ plan.risk_level }}</div>
-          <div class="plan-metric">Liquidity: {{ plan.liquidity_terms }}</div>
-          <div class="plan-metric">Lock period: {{ plan.lock_period_days }} days</div>
+        <div class="plan-highlights">
+          <div class="plan-highlight">
+            <span>Total return</span>
+            <strong>{{ plan.effective_total_return }}%</strong>
+          </div>
+          <div class="plan-highlight">
+            <span>Duration</span>
+            <strong>{{ plan.duration_days|number }} days</strong>
+          </div>
+          <div class="plan-highlight">
+            <span>Risk</span>
+            <strong>{{ plan.get_risk_level_display }}</strong>
+          </div>
+          <div class="plan-highlight">
+            <span>Payout</span>
+            <strong>{{ plan.get_payout_frequency_display }}</strong>
+          </div>
+        </div>
+        <div class="plan-profit-banner">
+          <span class="plan-profit-label">Projected return</span>
+          <strong>{{ plan.effective_total_return }}% total profit over {{ plan.duration_days }} days</strong>
         </div>
         <div class="plan-footer">
           <button class="btn ghost" data-modal-open="#planView{{ plan.id }}" type="button">View</button>

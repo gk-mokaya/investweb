@@ -4,8 +4,8 @@ from investments.models import DailyProfit, InvestmentAccount, InvestmentPlan, U
 
 @admin.register(InvestmentAccount)
 class InvestmentAccountAdmin(admin.ModelAdmin):
-    list_display = ('user', 'active_positions_count', 'completed_positions_count', 'current_balance', 'total_earned', 'created_at')
-    search_fields = ('user__username', 'user__email')
+    list_display = ('ledger_code', 'user', 'active_positions_count', 'completed_positions_count', 'current_balance', 'total_earned', 'created_at')
+    search_fields = ('ledger_code', 'user__username', 'user__email')
     readonly_fields = ('active_positions_count', 'completed_positions_count', 'current_balance', 'total_earned')
 
 

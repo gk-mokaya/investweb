@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}{{ account.user.username }} Ledger | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
+{% block title %}{{ account.ledger_label }} | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
 
 {% block content %}
 <div class="section-card ledger-compact">
   <div class="section-header">
     <div>
-      <div class="section-title">{{ account.user.username }} ledger history</div>
+      <div class="section-title">{{ account.ledger_label }} history</div>
       <div class="card-muted">Full investment trail for this user, including active and settled positions.</div>
     </div>
     <div class="section-actions">

@@ -86,19 +86,25 @@
 
       <section class="chat-thread chat-thread-dashboard" data-chat-thread>
         {% if selected_messages %}
-          {% for message in selected_messages %}
-            <div class="chat-bubble {{ message.sender_role }} {% if message.sender_role == 'admin' %}outgoing{% else %}incoming{% endif %}">
-              <div class="chat-bubble-meta">
-                <strong>{% if message.sender_role == 'admin' %}Staff{% else %}Client{% endif %}</strong>
-                <span>{{ message.created_at|date:"M d, H:i" }}</span>
-              </div>
-              <div class="chat-bubble-text">{{ message.content }}</div>
-              {% if message.attachment %}
-                <div class="chat-bubble-image">
-                  <img src="{{ message.attachment.url }}" alt="Chat attachment" />
-                </div>
-              {% endif %}
+          {% regroup selected_messages by day_label as message_groups %}
+          {% for group in message_groups %}
+            <div class="chat-day-separator">
+              <span>{{ group.grouper }}</span>
             </div>
+            {% for message in group.list %}
+              <div class="chat-bubble {{ message.sender_role }} {% if message.sender_role == 'admin' %}outgoing{% else %}incoming{% endif %}">
+                <div class="chat-bubble-meta">
+                  <strong>{% if message.sender_role == 'admin' %}Staff{% else %}Client{% endif %}</strong>
+                  <span>{{ message.time_label }}</span>
+                </div>
+                <div class="chat-bubble-text">{{ message.content }}</div>
+                {% if message.attachment_url %}
+                  <div class="chat-bubble-image">
+                    <img src="{{ message.attachment_url }}" alt="Chat attachment" />
+                  </div>
+                {% endif %}
+              </div>
+            {% endfor %}
           {% endfor %}
         {% else %}
           <div class="chat-empty">

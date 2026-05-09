@@ -3,13 +3,21 @@
 {% block title %}Account Directory | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
 
 {% block content %}
-<div class="section-card">
+<div class="section-card admin-view-shell" data-view-shell data-view-key="admin-users">
   <div class="section-header">
     <div>
       <div class="section-title">Account directory</div>
       <div class="card-muted">Search users, inspect access, and move between active, inactive, and staff roles.</div>
     </div>
     <div class="section-actions">
+      <div class="table-view-toggle" data-view-toggle>
+        <button type="button" class="view-toggle-btn is-active" data-view-mode="table" aria-pressed="true" aria-label="Show table view">
+          <svg class="icon sm"><use href="#icon-list"></use></svg>
+        </button>
+        <button type="button" class="view-toggle-btn" data-view-mode="card" aria-pressed="false" aria-label="Show card view">
+          <svg class="icon sm"><use href="#icon-grid"></use></svg>
+        </button>
+      </div>
       <a class="btn primary" href="{% url 'admin_user_create' %}">Add user</a>
     </div>
   </div>
@@ -38,7 +46,7 @@
     </div>
   </div>
 
-  <div class="table-wrapper">
+  <div class="table-wrapper" data-table-view>
     <table class="table">
       <thead>
         <tr>
@@ -108,6 +116,63 @@
         {% endfor %}
       </tbody>
     </table>
+  </div>
+
+  <div class="admin-card-view" data-card-view hidden>
+    <form class="filters-bar filters-inline" method="get" data-auto-submit="true">
+      <input class="filters-search" type="text" name="q" value="{{ q }}" placeholder="Search by username, email, or full name" />
+      <select class="filter-chip" name="status">
+        <option value="">All users</option>
+        <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
+        <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Inactive</option>
+        <option value="staff" {% if status == 'staff' %}selected{% endif %}>Staff</option>
+      </select>
+      <div class="filters-actions">
+        <a class="btn ghost" href="{% url 'admin_user_list' %}">Clear</a>
+      </div>
+    </form>
+
+    <div class="admin-card-view">
+      {% for user in users %}
+        <article class="admin-record-card">
+          <div class="admin-record-top">
+            <div class="admin-record-title">
+              <strong>{{ user.username }}</strong>
+              <span>{{ user.first_name|default:'' }} {{ user.last_name|default:'' }}{% if user.email %} · {{ user.email }}{% endif %}</span>
+            </div>
+            <div class="table-actions">
+              {% if user.is_superuser %}
+                <span class="badge info">Admin</span>
+              {% elif user.is_staff %}
+                <span class="badge success">Staff</span>
+              {% else %}
+                <span class="badge">Member</span>
+              {% endif %}
+              {% if user.is_active %}
+                <span class="badge success">Active</span>
+              {% else %}
+                <span class="badge danger">Inactive</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="admin-record-grid">
+            <div class="admin-record-field">
+              <span>Joined</span>
+              <strong>{{ user.date_joined|date:"M d, Y" }}</strong>
+            </div>
+            <div class="admin-record-field">
+              <span>Role</span>
+              <strong>{% if user.is_superuser %}Admin{% elif user.is_staff %}Staff{% else %}Member{% endif %}</strong>
+            </div>
+          </div>
+          <div class="admin-record-actions">
+            <a class="btn small ghost" href="{% url 'admin_user_detail' user.id %}">Edit user</a>
+          </div>
+        </article>
+      {% empty %}
+        <div class="empty-state">No users found.</div>
+      {% endfor %}
+    </div>
   </div>
 
   {% include "partials/pagination.html" %}

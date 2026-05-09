@@ -43,6 +43,14 @@ class UserLoginView(LoginView):
     form_class = EmailAuthenticationForm
     redirect_authenticated_user = True
 
+    def get_success_url(self):
+        redirect_url = self.get_redirect_url()
+        if redirect_url:
+            return redirect_url
+        if self.request.user.is_staff:
+            return reverse_lazy('admin_dashboard')
+        return reverse_lazy('dashboard')
+
 
 class UserLogoutView(LogoutView):
     next_page = reverse_lazy('home')

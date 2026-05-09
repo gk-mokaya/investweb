@@ -261,10 +261,25 @@ class WalletQueueView(LoginRequiredMixin, StaffOnlyMixin, ListView):
     template_name = 'admin_wallets.html'
     model = Wallet
     context_object_name = 'wallets'
-    paginate_by = 25
+    paginate_by = 15
 
     def get_queryset(self):
-        queryset = Wallet.objects.select_related('user').order_by('-created_at')
+        queryset = (
+            Wallet.objects.select_related('user')
+            .only(
+                'id',
+                'user__id',
+                'user__username',
+                'name',
+                'wallet_type',
+                'main_balance',
+                'bonus_balance',
+                'profit_balance',
+                'is_active',
+                'created_at',
+            )
+            .order_by('-is_active', '-created_at')
+        )
         status = self.request.GET.get('status', '').strip()
         query = self.request.GET.get('q', '').strip()
         if status == 'active':

@@ -177,6 +177,76 @@
 
   initAutoSubmitForms();
 
+  function initViewModeShells() {
+    function applyShellViewMode(shell, mode) {
+      if (!shell) return;
+      var toggle = shell.querySelector('[data-view-toggle]');
+      var tableView = shell.querySelector('[data-table-view]');
+      var cardView = shell.querySelector('[data-card-view]');
+      if (!toggle || !tableView || !cardView) return;
+
+      var nextMode = mode === 'card' ? 'card' : 'table';
+      var viewKey = shell.getAttribute('data-view-key') || 'default';
+      var storageKey = 'table-view:' + viewKey;
+      var buttons = toggle.querySelectorAll('[data-view-mode]');
+
+      shell.classList.toggle('is-card-view', nextMode === 'card');
+      shell.classList.toggle('is-table-view', nextMode !== 'card');
+      tableView.hidden = nextMode === 'card';
+      cardView.hidden = nextMode !== 'card';
+      buttons.forEach(function (button) {
+        var active = button.getAttribute('data-view-mode') === nextMode;
+        button.classList.toggle('is-active', active);
+        button.setAttribute('aria-pressed', active ? 'true' : 'false');
+      });
+      try {
+        window.localStorage.setItem(storageKey, nextMode);
+      } catch (error) {}
+    }
+
+    document.querySelectorAll('[data-view-shell]').forEach(function (shell) {
+      if (shell.dataset.viewModeBound === 'true') return;
+      shell.dataset.viewModeBound = 'true';
+
+      var toggle = shell.querySelector('[data-view-toggle]');
+      var tableView = shell.querySelector('[data-table-view]');
+      var cardView = shell.querySelector('[data-card-view]');
+      if (!toggle || !tableView || !cardView) return;
+
+      var viewKey = shell.getAttribute('data-view-key') || 'default';
+      var storageKey = 'table-view:' + viewKey;
+      var buttons = toggle.querySelectorAll('[data-view-mode]');
+      var storedMode = '';
+
+      try {
+        storedMode = window.localStorage.getItem(storageKey) || '';
+      } catch (error) {
+        storedMode = '';
+      }
+
+      buttons.forEach(function (button) {
+        button.addEventListener('click', function () {
+          applyShellViewMode(shell, button.getAttribute('data-view-mode'));
+        });
+      });
+
+      if (!storedMode) {
+        storedMode = window.matchMedia && window.matchMedia('(max-width: 720px)').matches ? 'card' : 'table';
+      }
+      applyShellViewMode(shell, storedMode);
+    });
+
+    document.addEventListener('click', function (event) {
+      var button = event.target.closest('[data-view-mode]');
+      if (!button) return;
+      var shell = button.closest('[data-view-shell]');
+      if (!shell) return;
+      applyShellViewMode(shell, button.getAttribute('data-view-mode'));
+    });
+  }
+
+  initViewModeShells();
+
   window.addEventListener('pageshow', function () {
     hidePageLoader();
   });
@@ -1040,6 +1110,10 @@
   function renderScheduleTables() {
     document.querySelectorAll('[data-schedule-table]').forEach(function (table) {
       var tbody = table.querySelector('tbody');
+      var shell = table.closest('[data-schedule-view-shell]');
+      var tableWrap = shell ? shell.querySelector('.schedule-table-wrap') : null;
+      var cardView = shell ? shell.querySelector('[data-schedule-card-view]') : null;
+      var toggle = shell ? shell.closest('.schedule-section').querySelector('[data-view-toggle]') : null;
       if (!tbody) return;
       var startStr = table.getAttribute('data-start');
       var endStr = table.getAttribute('data-end');
@@ -1080,6 +1154,7 @@
       today.setHours(0, 0, 0, 0);
 
       var rows = [];
+      var cards = [];
       var cumulative = 0;
       var iter = 0;
       var cursor = new Date(startDate);
@@ -1132,6 +1207,27 @@
             '</td>' +
           '</tr>'
         );
+        cards.push(
+          '<div class=\"schedule-card-row ' + statusClass + '\">' +
+            '<div class=\"schedule-card-top\">' +
+              '<div class=\"schedule-card-field\">' +
+                '<span>Date</span>' +
+                '<strong>' + formatDate(dueDate) + '</strong>' +
+              '</div>' +
+              '<span class=\"schedule-status-badge ' + statusClass + '\">' + status + '</span>' +
+            '</div>' +
+            '<div class=\"schedule-card-grid\">' +
+              '<div class=\"schedule-card-field\">' +
+                '<span>Payout Amount</span>' +
+                '<strong>' + formatMoney(dayProfit, currency) + '</strong>' +
+              '</div>' +
+              '<div class=\"schedule-card-field\">' +
+                '<span>Cumulative Profit</span>' +
+                '<strong>' + formatMoney(cumulative, currency) + '</strong>' +
+              '</div>' +
+            '</div>' +
+          '</div>'
+        );
         periodStart = new Date(dueDate);
         iter += 1;
       });
@@ -1139,8 +1235,43 @@
       if (!rows.length) {
         rows.push('<tr><td colspan=\"4\"><div class=\"empty-state\">No schedule data available.</div></td></tr>');
       }
+      if (!cards.length) {
+        cards.push('<div class=\"empty-state\">No schedule data available.</div>');
+      }
 
       tbody.innerHTML = rows.join('');
+      if (cardView) {
+        cardView.innerHTML = cards.join('');
+      }
+
+      if (toggle && shell) {
+        var viewKey = table.getAttribute('data-view-key') || 'schedule';
+        var storageKey = 'table-view:' + viewKey;
+        var storedMode = window.localStorage.getItem(storageKey) || 'table';
+        var buttons = toggle.querySelectorAll('[data-view-mode]');
+
+        function applyMode(mode) {
+          var nextMode = mode === 'card' ? 'card' : 'table';
+          shell.classList.toggle('is-card-view', nextMode === 'card');
+          shell.classList.toggle('is-table-view', nextMode !== 'card');
+          if (tableWrap) tableWrap.hidden = nextMode === 'card';
+          if (cardView) cardView.hidden = nextMode !== 'card';
+          buttons.forEach(function (button) {
+            var active = button.getAttribute('data-view-mode') === nextMode;
+            button.classList.toggle('is-active', active);
+            button.setAttribute('aria-pressed', active ? 'true' : 'false');
+          });
+          window.localStorage.setItem(storageKey, nextMode);
+        }
+
+        buttons.forEach(function (button) {
+          button.addEventListener('click', function () {
+            applyMode(button.getAttribute('data-view-mode'));
+          });
+        });
+
+        applyMode(storedMode);
+      }
     });
   }
 

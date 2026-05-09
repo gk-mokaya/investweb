@@ -183,36 +183,50 @@
           </div>
         </div>
         <div class="schedule-section investment-schedule-card">
-          <div class="modal-section-title">Payout schedule</div>
-          <div class="table-wrapper">
-            <table class="table schedule-table investment-schedule-table"
-                   data-schedule-table
-                   data-start="{{ investment.start_date|date:'Y-m-d' }}"
-                   data-end="{{ investment.end_date|date:'Y-m-d' }}"
-                   data-amount="{{ investment.amount }}"
-                   data-total-return="{{ investment.effective_total_return }}"
-                   data-duration-days="{{ investment.effective_duration_days }}"
-                   data-frequency="{{ investment.effective_payout_frequency }}"
-                   data-fee="{{ investment.effective_management_fee_pct }}"
-                   data-currency="{{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}"
-                   data-completed="{% if investment.is_completed %}true{% else %}false{% endif %}"
-                   data-earned='[{% for profit in investment.profit_schedule %}{"date":"{{ profit.date|date:"Y-m-d" }}","amount":"{{ profit.amount }}"}{% if not forloop.last %},{% endif %}{% endfor %}]'>
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Payout Amount</th>
-                  <th>Cumulative Profit</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td colspan="4">
-                    <div class="empty-state">Loading schedule...</div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          <div class="schedule-section-head">
+            <div class="modal-section-title">Payout schedule</div>
+            <div class="table-view-toggle" data-view-toggle>
+              <button type="button" class="view-toggle-btn is-active" data-view-mode="table" aria-pressed="true" aria-label="Show table view">
+                <svg class="icon sm"><use href="#icon-list"></use></svg>
+              </button>
+              <button type="button" class="view-toggle-btn" data-view-mode="card" aria-pressed="false" aria-label="Show card view">
+                <svg class="icon sm"><use href="#icon-grid"></use></svg>
+              </button>
+            </div>
+          </div>
+          <div class="schedule-view-shell is-table" data-schedule-view-shell>
+            <div class="table-wrapper schedule-table-wrap">
+              <table class="table schedule-table investment-schedule-table"
+                     data-schedule-table
+                     data-view-key="investment-schedule-{{ investment.id }}"
+                     data-start="{{ investment.start_date|date:'Y-m-d' }}"
+                     data-end="{{ investment.end_date|date:'Y-m-d' }}"
+                     data-amount="{{ investment.amount }}"
+                     data-total-return="{{ investment.effective_total_return }}"
+                     data-duration-days="{{ investment.effective_duration_days }}"
+                     data-frequency="{{ investment.effective_payout_frequency }}"
+                     data-fee="{{ investment.effective_management_fee_pct }}"
+                     data-currency="{{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}"
+                     data-completed="{% if investment.is_completed %}true{% else %}false{% endif %}"
+                     data-earned='[{% for profit in investment.profit_schedule %}{"date":"{{ profit.date|date:"Y-m-d" }}","amount":"{{ profit.amount }}"}{% if not forloop.last %},{% endif %}{% endfor %}]'>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Payout Amount</th>
+                    <th>Cumulative Profit</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td colspan="4">
+                      <div class="empty-state">Loading schedule...</div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="schedule-card-view" data-schedule-card-view hidden></div>
           </div>
         </div>
       </div>

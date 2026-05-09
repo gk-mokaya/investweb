@@ -29,6 +29,39 @@
     thread.scrollTop = thread.scrollHeight;
   }
 
+  function parseLocalDate(value) {
+    if (!value) return null;
+    var date = new Date(value);
+    return isNaN(date.getTime()) ? null : date;
+  }
+
+  function formatDaySeparatorLabel(message) {
+    if (message && message.day_label) return message.day_label;
+    var createdAt = parseLocalDate(message && message.created_at);
+    if (!createdAt) return '';
+    var now = new Date();
+    var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    var day = new Date(createdAt.getFullYear(), createdAt.getMonth(), createdAt.getDate());
+    var diffDays = Math.round((today - day) / 86400000);
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    return createdAt.toLocaleDateString(undefined, {
+      month: 'short',
+      day: '2-digit',
+      year: 'numeric'
+    });
+  }
+
+  function createDaySeparator(label) {
+    var separator = document.createElement('div');
+    separator.className = 'chat-day-separator';
+    separator.dataset.chatDaySeparator = 'true';
+    var span = document.createElement('span');
+    span.textContent = label;
+    separator.appendChild(span);
+    return separator;
+  }
+
   function autosizeTextarea(textarea, maxHeight) {
     if (!textarea) return;
     var limit = Number(maxHeight) || 160;
@@ -67,7 +100,13 @@
       thread.innerHTML = '<div class="chat-empty">Start the conversation below.</div>';
       return;
     }
+    var currentDay = '';
     messages.forEach(function (message) {
+      var dayLabel = formatDaySeparatorLabel(message);
+      if (dayLabel && dayLabel !== currentDay) {
+        thread.appendChild(createDaySeparator(dayLabel));
+        currentDay = dayLabel;
+      }
       var bubble = document.createElement('div');
       bubble.className = 'chat-bubble ' + (message.sender_role || 'client') + ' ' + ((message.sender_role || 'client') === 'admin' ? 'outgoing' : 'incoming');
       var meta = document.createElement('div');
@@ -101,6 +140,18 @@
     if (!thread) return;
     var empty = thread.querySelector('.chat-empty');
     if (empty) empty.remove();
+    var dayLabel = formatDaySeparatorLabel(message);
+    var lastSeparator = null;
+    var children = thread.children;
+    for (var i = children.length - 1; i >= 0; i -= 1) {
+      if (children[i].dataset && children[i].dataset.chatDaySeparator === 'true') {
+        lastSeparator = children[i];
+        break;
+      }
+    }
+    if (!lastSeparator || (dayLabel && lastSeparator.textContent.trim() !== dayLabel)) {
+      thread.appendChild(createDaySeparator(dayLabel));
+    }
     var bubble = document.createElement('div');
     bubble.className = 'chat-bubble ' + (message.sender_role || 'client') + ' ' + ((message.sender_role || 'client') === 'admin' ? 'outgoing' : 'incoming');
     var meta = document.createElement('div');

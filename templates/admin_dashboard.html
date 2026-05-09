@@ -3,6 +3,7 @@
 {% block title %}Staff Dashboard | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
 
 {% block content %}
+<div class="dashboard-compact-shell dashboard-redesign admin-dashboard-page">
 <div class="profile-hero admin-hero">
   <div class="profile-hero-main">
     <div class="profile-avatar">ST</div>
@@ -43,7 +44,7 @@
   </div>
 </div>
 
-<div class="section-card">
+<div class="section-card dashboard-chart-card">
   <div class="section-header">
     <div>
       <div class="section-title">Management insights</div>
@@ -58,8 +59,8 @@
     </div>
   </div>
 
-  <div class="chart-grid admin-insight-grid">
-    <div class="chart-card admin-insight-card">
+  <div class="chart-grid admin-insight-grid dashboard-panels-grid-tight">
+    <div class="chart-card dashboard-chart-card admin-insight-card">
       <div class="section-header">
         <div>
           <div class="section-title">Operations trend</div>
@@ -85,7 +86,7 @@
       </div>
     </div>
 
-    <div class="chart-card admin-insight-card">
+    <div class="chart-card dashboard-chart-card admin-insight-card">
       <div class="section-header">
         <div>
           <div class="section-title">Queue pressure</div>
@@ -113,8 +114,8 @@
   </div>
 </div>
 
-<div class="chart-grid">
-  <div class="section-card chart-card">
+<div class="chart-grid dashboard-panels-grid-tight">
+  <div class="section-card chart-card dashboard-chart-card">
     <div class="section-header">
       <div>
         <div class="section-title">Platform signals</div>
@@ -135,7 +136,7 @@
     </div>
   </div>
 
-  <div class="section-card chart-card">
+  <div class="section-card chart-card dashboard-chart-card">
     <div class="section-header">
       <div>
         <div class="section-title">Recent activity</div>
@@ -163,7 +164,7 @@
   </div>
 </div>
 
-<div class="section-card">
+<div class="section-card dashboard-chart-card">
   <div class="section-header">
     <div>
       <div class="section-title">Platform control</div>
@@ -207,4 +208,5 @@
     </div>
   </div>
 </div>
+ </div>
 {% endblock %}

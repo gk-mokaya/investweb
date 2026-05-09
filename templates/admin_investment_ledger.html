@@ -3,13 +3,21 @@
 {% block title %}Investment Ledger | {{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}{% endblock %}
 
 {% block content %}
-<div class="section-card ledger-compact">
+<div class="section-card ledger-compact admin-view-shell" data-view-shell data-view-key="admin-investment-ledger">
   <div class="section-header">
     <div>
       <div class="section-title">Investment Ledger</div>
       <div class="card-muted">Review active principal, accrued profit, and settled positions by user.</div>
     </div>
     <div class="section-actions">
+      <div class="table-view-toggle" data-view-toggle>
+        <button type="button" class="view-toggle-btn is-active" data-view-mode="table" aria-pressed="true" aria-label="Show table view">
+          <svg class="icon sm"><use href="#icon-list"></use></svg>
+        </button>
+        <button type="button" class="view-toggle-btn" data-view-mode="card" aria-pressed="false" aria-label="Show card view">
+          <svg class="icon sm"><use href="#icon-grid"></use></svg>
+        </button>
+      </div>
       <a class="btn ghost" href="{% url 'admin_dashboard' %}">Back to dashboard</a>
     </div>
   </div>
@@ -54,7 +62,7 @@
     </div>
   </div>
 
-  <div class="table-wrapper">
+  <div class="table-wrapper" data-table-view>
     <table class="table">
       <thead>
         <tr>
@@ -88,6 +96,7 @@
             <td data-label="User">
               <div class="list-stack" style="gap:4px;">
                 <strong>{{ account.user.username }}</strong>
+                <span class="card-muted">{{ account.ledger_label }}</span>
                 <span class="card-muted">{{ account.user.email|default:'No email set' }}</span>
               </div>
             </td>
@@ -117,6 +126,61 @@
     </table>
   </div>
 
+  <div class="admin-card-view" data-card-view hidden>
+    <form class="filters-bar filters-inline" method="get" data-auto-submit="true">
+      <input class="filters-search" type="text" name="q" value="{{ q }}" placeholder="Search by username or email" />
+      <select class="filter-chip" name="status">
+        {% for value, label in status_choices %}
+          <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <div class="filters-actions">
+        <a class="btn ghost" href="{% url 'admin_investment_ledger' %}">Clear</a>
+      </div>
+    </form>
+
+    <div class="admin-card-view">
+      {% for account in accounts %}
+        <article class="admin-record-card">
+          <div class="admin-record-top">
+            <div class="admin-record-title">
+              <strong>{{ account.user.username }}</strong>
+              <span>{{ account.ledger_label }}{% if account.user.email %} · {{ account.user.email }}{% endif %}</span>
+            </div>
+            <div class="table-actions">
+              <span class="badge info">{{ account.active_positions_total|default:0|number }} active</span>
+              <span class="badge">{{ account.completed_positions_total|default:0|number }} settled</span>
+            </div>
+          </div>
+          <div class="admin-record-grid">
+            <div class="admin-record-field">
+              <span>Active principal</span>
+              <strong>{{ account.active_principal_total|default:0|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</strong>
+            </div>
+            <div class="admin-record-field">
+              <span>Accrued profit</span>
+              <strong>{{ account.active_earned_total|default:0|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</strong>
+            </div>
+            <div class="admin-record-field">
+              <span>Settled principal</span>
+              <strong>{{ account.settled_principal_total|default:0|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</strong>
+            </div>
+            <div class="admin-record-field">
+              <span>Total earned</span>
+              <strong>{{ account.total_earned_total|default:0|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</strong>
+            </div>
+          </div>
+          <div class="admin-record-actions">
+            <a class="btn small primary" href="{% url 'admin_investment_ledger_user' account.user.id %}">Open history</a>
+            <button class="btn small ghost" type="button" data-modal-open="#ledger{{ account.id }}">View ledger</button>
+          </div>
+        </article>
+      {% empty %}
+        <div class="empty-state">No investment ledgers found.</div>
+      {% endfor %}
+    </div>
+  </div>
+
   {% include "partials/pagination.html" %}
 </div>
 
@@ -125,7 +189,7 @@
     <div class="modal-backdrop" data-modal-close></div>
     <div class="modal-dialog">
       <div class="modal-header">
-        <div class="modal-title">{{ account.user.username }} ledger</div>
+        <div class="modal-title">{{ account.ledger_label }}</div>
         <div class="table-actions">
           <a class="btn small primary" href="{% url 'admin_investment_ledger_user' account.user.id %}">Open history</a>
           <button class="modal-close" type="button" data-modal-close><svg class="icon sm"><use href="#icon-x"></use></svg></button>
