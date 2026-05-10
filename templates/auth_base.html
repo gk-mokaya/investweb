@@ -46,16 +46,16 @@
           <p>{% block auth_subheading %}Track balances, funding activity, plan performance, and account security from one place.{% endblock %}</p>
           <div class="auth-left-highlights">
             <div class="auth-left-highlight">
-              <div class="auth-left-highlight-title">Portfolio visibility</div>
-              <div class="auth-left-highlight-text">Review invested capital, returns, and active plan performance in one dashboard.</div>
+              <div class="auth-left-highlight-title">Fast access</div>
+              <div class="auth-left-highlight-text">Sign in, reset passwords, and keep account access moving without friction.</div>
             </div>
             <div class="auth-left-highlight">
-              <div class="auth-left-highlight-title">Scheduled profit posting</div>
-              <div class="auth-left-highlight-text">Planned payouts are credited to wallets according to each plan's schedule.</div>
+              <div class="auth-left-highlight-title">Secure recovery</div>
+              <div class="auth-left-highlight-text">Reset links are short-lived and designed to keep account recovery safe.</div>
             </div>
             <div class="auth-left-highlight">
-              <div class="auth-left-highlight-title">Wallet operations</div>
-              <div class="auth-left-highlight-text">Manage deposits, withdrawals, and transfers with clear balance visibility.</div>
+              <div class="auth-left-highlight-title">Simple workflow</div>
+              <div class="auth-left-highlight-text">Create an account, verify details, and reach your dashboard in a few steps.</div>
             </div>
           </div>
         </div>
@@ -72,6 +72,11 @@
             </div>
             <div class="auth-card-brand-name">{{ SYSTEM_SETTINGS.PROJECT_NAME|default:'Invest Platform' }}</div>
           </div>
+          {% block auth_card_note_wrapper %}
+            <div class="auth-card-note">
+              {% block auth_card_note %}{% endblock %}
+            </div>
+          {% endblock %}
           {% include "partials/alerts.html" %}
           {% block content %}{% endblock %}
         </div>

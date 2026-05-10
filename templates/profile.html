@@ -45,12 +45,9 @@
       </div>
       <div class="profile-hero-actions">
         <button class="btn primary" data-modal-open="#profileModal" type="button">Update profile</button>
-        {% if kyc_profile.status == 'verified' %}
-          <span class="badge success">Verified</span>
-        {% else %}
+        {% if kyc_profile.status != 'verified' %}
           <button class="btn ghost" data-modal-open="#kycModal" type="button">Update KYC</button>
         {% endif %}
-        <a class="btn ghost" href="{% url 'dashboard' %}">Back to dashboard</a>
       </div>
     </div>
   </section>

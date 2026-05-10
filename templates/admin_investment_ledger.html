@@ -23,34 +23,10 @@
   </div>
 
   <div class="queue-summary-grid platform-summary-grid">
-    <div class="queue-summary-card no-link">
-      <div class="queue-summary-top">
-        <span class="queue-summary-label">Users tracked</span>
-        <span class="badge info">{{ summary.users_tracked|default:0|number }}</span>
-      </div>
-      <div class="queue-summary-note">Users with one or more ledger accounts.</div>
-    </div>
-    <div class="queue-summary-card no-link">
-      <div class="queue-summary-top">
-        <span class="queue-summary-label">Active principal</span>
-        <span class="badge warning">{{ summary.active_principal|default:0|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</span>
-      </div>
-      <div class="queue-summary-note">Capital still locked inside active positions.</div>
-    </div>
-    <div class="queue-summary-card no-link">
-      <div class="queue-summary-top">
-        <span class="queue-summary-label">Accrued profit</span>
-        <span class="badge success">{{ summary.active_earned|default:0|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</span>
-      </div>
-      <div class="queue-summary-note">Profit earned on positions that are still active.</div>
-    </div>
-    <div class="queue-summary-card no-link">
-      <div class="queue-summary-top">
-        <span class="queue-summary-label">Settled positions</span>
-        <span class="badge info">{{ summary.completed_positions|default:0|number }}</span>
-      </div>
-      <div class="queue-summary-note">Positions that have finished and been released.</div>
-    </div>
+    {% include "partials/summary_stat.html" with label="Users tracked" value=summary.users_tracked|default:0|number badge_class="info" note="Users with one or more ledger accounts." %}
+    {% include "partials/summary_stat.html" with label="Active principal" value=summary.active_principal|default:0|money badge_class="warning" suffix=SYSTEM_SETTINGS.CURRENCY|default:'USD' note="Capital still locked inside active positions." %}
+    {% include "partials/summary_stat.html" with label="Accrued profit" value=summary.active_earned|default:0|money badge_class="success" suffix=SYSTEM_SETTINGS.CURRENCY|default:'USD' note="Profit earned on positions that are still active." %}
+    {% include "partials/summary_stat.html" with label="Settled positions" value=summary.completed_positions|default:0|number badge_class="info" note="Positions that have finished and been released." %}
   </div>
 </div>
 
@@ -218,13 +194,7 @@
         <div class="table-wrapper" style="margin-top:16px;">
           <table class="table">
             <thead>
-              <tr>
-                <th>Plan</th>
-                <th>Amount</th>
-                <th>Earned</th>
-                <th>Status</th>
-                <th>Maturity</th>
-              </tr>
+              {% include "partials/ledger_position_table_head.html" with include_maturity=True %}
             </thead>
             <tbody>
               {% for position in account.positions.all %}

@@ -1,7 +1,12 @@
+import logging
+
 from django.core.cache import cache
 from django.conf import settings
 
 from investments.services import sync_investment_profits
+
+
+logger = logging.getLogger(__name__)
 
 
 class InvestmentProfitSyncMiddleware:
@@ -33,6 +38,8 @@ class InvestmentProfitSyncMiddleware:
             return False
         if 'application/json' in accept:
             return False
+        if not accept:
+            return True
         return 'text/html' in accept or accept == '*/*'
 
     def _maybe_sync(self):
@@ -42,4 +49,4 @@ class InvestmentProfitSyncMiddleware:
             sync_investment_profits()
         except Exception:
             # Never block the user request if the profit sync has a transient failure.
-            pass
+            logger.exception("Profit sync failed during request-time catch-up.")

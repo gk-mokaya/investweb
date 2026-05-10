@@ -5,10 +5,10 @@
 {% block auth_subheading %}Set up your account, complete verification, and review live plans in one flow.{% endblock %}
 
 {% block content %}
-<div class="auth-callout auth-callout-guide">
-  <div class="auth-callout-title">Regster now and get welcome bonus. </div>
-  <div class="auth-callout-note">
-    {{ SYSTEM_SETTINGS.WELCOME_BONUS|default:'50' }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }} is credited to your primary wallet after first registration.
+<div class="auth-register-helper">
+  <div class="auth-register-helper-title">Complete registration and account verification</div>
+  <div class="auth-register-helper-text">
+    Receive your {{ SYSTEM_SETTINGS.WELCOME_BONUS|default:'50' }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }} welcome bonus after verification is completed.
   </div>
 </div>
 <form method="post" class="auth-form">
@@ -27,4 +27,3 @@
   Already have an account? <a href="{% url 'login' %}">Sign in</a>
 </div>
 {% endblock %}
-

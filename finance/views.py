@@ -31,6 +31,46 @@ class StaffOnlyMixin(UserPassesTestMixin):
         return self.request.user.is_staff
 
 
+def _money_total(value) -> Decimal:
+    return value or Decimal('0')
+
+
+def _ledger_position_totals(positions):
+    active_positions = [position for position in positions if not position.is_completed]
+    completed_positions = [position for position in positions if position.is_completed]
+    return {
+        'positions': positions,
+        'active_positions': active_positions,
+        'completed_positions': completed_positions,
+        'total_invested': sum((position.amount for position in positions), start=Decimal('0')),
+        'total_earned': sum((position.total_earned for position in positions), start=Decimal('0')),
+        'active_principal': sum((position.amount for position in active_positions), start=Decimal('0')),
+        'active_earned': sum((position.total_earned for position in active_positions), start=Decimal('0')),
+        'settled_principal': sum((position.amount for position in completed_positions), start=Decimal('0')),
+        'settled_earned': sum((position.total_earned for position in completed_positions), start=Decimal('0')),
+    }
+
+
+def _ledger_account_summary(queryset):
+    summary_totals = queryset.aggregate(
+        active_positions=Count('positions', filter=Q(positions__is_completed=False)),
+        completed_positions=Count('positions', filter=Q(positions__is_completed=True)),
+        active_principal=Sum('positions__amount', filter=Q(positions__is_completed=False)),
+        active_earned=Sum('positions__total_earned', filter=Q(positions__is_completed=False)),
+        total_earned=Sum('positions__total_earned'),
+        settled_principal=Sum('positions__amount', filter=Q(positions__is_completed=True)),
+    )
+    return {
+        'users_tracked': queryset.count(),
+        'active_positions': _money_total(summary_totals['active_positions']),
+        'completed_positions': _money_total(summary_totals['completed_positions']),
+        'active_principal': _money_total(summary_totals['active_principal']),
+        'active_earned': _money_total(summary_totals['active_earned']),
+        'total_earned': _money_total(summary_totals['total_earned']),
+        'settled_principal': _money_total(summary_totals['settled_principal']),
+    }
+
+
 def build_plan_page_context(request, *, plans=None, create_form=None, edit_form=None, edit_plan_id=None, open_create_modal=False):
     plans = plans if plans is not None else _filter_plans_for_request(request)
     return {
@@ -122,34 +162,16 @@ class AdminInvestmentLedgerView(LoginRequiredMixin, StaffOnlyMixin, ListView):
         if query:
             queryset = queryset.filter(Q(user__username__icontains=query) | Q(user__email__icontains=query))
         if status == 'active':
-            queryset = queryset.filter(active_positions_count__gt=0)
+            queryset = queryset.filter(active_positions_total__gt=0)
         elif status == 'settled':
-            queryset = queryset.filter(completed_positions_count__gt=0, active_positions_count=0)
+            queryset = queryset.filter(completed_positions_total__gt=0, active_positions_total=0)
         return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         filtered_queryset = self.get_queryset()
-        summary_totals = filtered_queryset.aggregate(
-            active_positions=Count('positions', filter=Q(positions__is_completed=False)),
-            completed_positions=Count('positions', filter=Q(positions__is_completed=True)),
-            active_principal=Sum('positions__amount', filter=Q(positions__is_completed=False)),
-            active_earned=Sum('positions__total_earned', filter=Q(positions__is_completed=False)),
-            total_earned=Sum('positions__total_earned'),
-            settled_principal=Sum('positions__amount', filter=Q(positions__is_completed=True)),
-        )
-        accounts = list(context.get('accounts', []))
-        summary = {
-            'users_tracked': filtered_queryset.count(),
-            'active_positions': summary_totals['active_positions'] or 0,
-            'completed_positions': summary_totals['completed_positions'] or 0,
-            'active_principal': summary_totals['active_principal'] or 0,
-            'active_earned': summary_totals['active_earned'] or 0,
-            'total_earned': summary_totals['total_earned'] or 0,
-            'settled_principal': summary_totals['settled_principal'] or 0,
-        }
         context.update(
-            summary=summary,
+            summary=_ledger_account_summary(filtered_queryset),
             q=self.request.GET.get('q', '').strip(),
             status=self.request.GET.get('status', '').strip(),
             status_choices=[('', 'All ledgers'), ('active', 'Active only'), ('settled', 'Settled only')],
@@ -171,20 +193,10 @@ class AdminInvestmentLedgerUserView(LoginRequiredMixin, StaffOnlyMixin, Template
             ),
             user_id=self.kwargs['user_id'],
         )
-        positions = list(account.positions.all())
-        active_positions = [position for position in positions if not position.is_completed]
-        completed_positions = [position for position in positions if position.is_completed]
+        position_totals = _ledger_position_totals(list(account.positions.all()))
         context.update(
             account=account,
-            positions=positions,
-            active_positions=active_positions,
-            completed_positions=completed_positions,
-            total_invested=sum((position.amount for position in positions), start=Decimal('0')),
-            total_earned=sum((position.total_earned for position in positions), start=Decimal('0')),
-            active_principal=sum((position.amount for position in active_positions), start=Decimal('0')),
-            active_earned=sum((position.total_earned for position in active_positions), start=Decimal('0')),
-            settled_principal=sum((position.amount for position in completed_positions), start=Decimal('0')),
-            settled_earned=sum((position.total_earned for position in completed_positions), start=Decimal('0')),
+            **position_totals,
         )
         return context
 

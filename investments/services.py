@@ -1,14 +1,16 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import timedelta
 from decimal import Decimal
+import logging
 import uuid
 
-from django.db import transaction
+from django.db import DatabaseError, connection, transaction
 from django.core.cache import cache
 from django.utils import timezone
 
-from investments.models import DailyProfit, InvestmentAccount, InvestmentPlan, UserInvestment
+from investments.models import DailyProfit, InvestmentAccount, InvestmentPlan, ProfitSyncState, UserInvestment
 from settingsconfig.utils import get_setting_decimal
 from wallets.models import Wallet
 from wallets.services import credit_wallet, debit_wallet, get_primary_wallet
@@ -19,6 +21,22 @@ PROFIT_SYNC_SUMMARY_CACHE_KEY = 'investment_profit_sync_last_summary'
 PROFIT_SYNC_SUMMARY_CACHE_TTL = 7 * 24 * 60 * 60
 PROFIT_SYNC_LOCK_KEY = 'investment_profit_sync_lock'
 PROFIT_SYNC_LOCK_TTL = 300
+PROFIT_SYNC_LOCK_NAME = 'investment_profit_sync'
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class ProfitSyncLock:
+    """
+    Represents a held profit-sync lock.
+
+    The cache token keeps the request-throttle lock releaseable, while the
+    database row lock is what makes the lock safe across processes.
+    """
+
+    token: str
+    mode: str
 
 
 def get_investment_account(user) -> InvestmentAccount:
@@ -146,6 +164,41 @@ def _release_investment_to_primary_wallet(investment: UserInvestment) -> None:
     investment.settled_at = timezone.now()
 
 
+def _acquire_profit_sync_lock() -> ProfitSyncLock | None:
+    """
+    Use a cache throttle for fast request skipping and a database row lock for
+    real cross-process exclusion when the backend supports it.
+    """
+    lock_token = uuid.uuid4().hex
+    if not cache.add(PROFIT_SYNC_LOCK_KEY, lock_token, timeout=PROFIT_SYNC_LOCK_TTL):
+        return None
+
+    if not connection.features.has_select_for_update:
+        return ProfitSyncLock(token=lock_token, mode='cache')
+
+    lock_state, _ = ProfitSyncState.objects.get_or_create(name=PROFIT_SYNC_LOCK_NAME)
+    lock_kwargs = {}
+    if getattr(connection.features, 'has_select_for_update_nowait', False):
+        lock_kwargs['nowait'] = True
+
+    try:
+        ProfitSyncState.objects.select_for_update(**lock_kwargs).get(pk=lock_state.pk)
+    except DatabaseError:
+        if cache.get(PROFIT_SYNC_LOCK_KEY) == lock_token:
+            cache.delete(PROFIT_SYNC_LOCK_KEY)
+        return None
+
+    return ProfitSyncLock(token=lock_token, mode='db')
+
+
+def _release_profit_sync_lock(lock_handle: ProfitSyncLock | None) -> None:
+    if not lock_handle:
+        return
+    lock_token = lock_handle.token
+    if lock_token and cache.get(PROFIT_SYNC_LOCK_KEY) == lock_token:
+        cache.delete(PROFIT_SYNC_LOCK_KEY)
+
+
 def _quantize_money(value: Decimal) -> Decimal:
     return value.quantize(Decimal('0.01'))
 
@@ -183,8 +236,9 @@ def sync_investment_profits(process_date=None) -> dict:
     if process_date is None:
         process_date = timezone.now().date()
 
-    lock_token = uuid.uuid4().hex
-    if not cache.add(PROFIT_SYNC_LOCK_KEY, lock_token, timeout=PROFIT_SYNC_LOCK_TTL):
+    lock_handle = _acquire_profit_sync_lock()
+    if not lock_handle:
+        logger.debug("Profit sync skipped because another run is already in progress.")
         return {
             'investments_checked': 0,
             'payouts_created': 0,
@@ -203,9 +257,10 @@ def sync_investment_profits(process_date=None) -> dict:
         investments = (
             UserInvestment.objects.select_related('plan', 'user', 'wallet', 'account')
             .filter(start_date__date__lte=process_date, is_completed=False)
+            .order_by('pk')
         )
 
-        for investment in investments:
+        for investment in investments.iterator(chunk_size=200):
             summary['investments_checked'] += 1
             schedule = _build_due_schedule(investment, process_date)
             if not schedule:
@@ -274,10 +329,16 @@ def sync_investment_profits(process_date=None) -> dict:
             },
             PROFIT_SYNC_SUMMARY_CACHE_TTL,
         )
+        logger.info(
+            "Profit sync complete checked=%s payouts=%s completed=%s date=%s",
+            summary['investments_checked'],
+            summary['payouts_created'],
+            summary['investments_completed'],
+            process_date,
+        )
         return summary
     finally:
-        if cache.get(PROFIT_SYNC_LOCK_KEY) == lock_token:
-            cache.delete(PROFIT_SYNC_LOCK_KEY)
+        _release_profit_sync_lock(lock_handle)
 
 
 @transaction.atomic

@@ -228,7 +228,7 @@
             <span>Ends</span>
             <span>Status</span>
           </div>
-          {% for item in active_position_rows|slice:":3" %}
+          {% for item in active_position_rows %}
             {% with investment=item.investment %}
               <div class="dashboard-investment-row">
                 <div class="dashboard-investment-cell dashboard-investment-cell-plan">
@@ -266,9 +266,6 @@
           {% endfor %}
         </div>
       </div>
-      {% if active_position_rows|length > 3 %}
-        <div class="dashboard-range-note">Showing 3 of {{ active_position_rows|length }} open investments. View all on the investments page.</div>
-      {% endif %}
     </article>
   </section>
 </div>

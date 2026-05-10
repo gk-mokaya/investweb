@@ -78,6 +78,14 @@ class InvestmentAccount(models.Model):
         return self.completed_positions.count()
 
 
+class ProfitSyncState(models.Model):
+    name = models.CharField(max_length=64, unique=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self) -> str:
+        return self.name
+
+
 class InvestmentPlan(models.Model):
     RISK_CHOICES = [
         ('low', 'Low'),

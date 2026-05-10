@@ -7,6 +7,7 @@ from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
 from accounts.models import Notification
+from accounts.forms import BrandedPasswordResetForm
 from accounts.middleware import BrowserFingerprintMiddleware
 from settingsconfig.models import SystemSetting
 from kyc.models import KYCProfile
@@ -70,7 +71,35 @@ class AuthRedirectTests(TestCase):
         response = self.client.get(reverse('login'))
 
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse('dashboard'))
+        self.assertEqual(response.url, reverse('admin_dashboard'))
+
+
+class PasswordResetFormTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='resetuser', email='reset@example.com', password='pass12345')
+
+    def test_password_reset_reports_missing_gmail_configuration(self):
+        form = BrandedPasswordResetForm(data={'email': 'reset@example.com'})
+
+        self.assertFalse(form.is_valid())
+        self.assertIn(
+            'Password reset email cannot be sent because Gmail credentials are not configured in Site Settings.',
+            form.non_field_errors(),
+        )
+
+    def test_password_reset_reports_unknown_email(self):
+        for key, value in {
+            'GMAIL_CLIENT_ID': 'client',
+            'GMAIL_CLIENT_SECRET': 'secret',
+            'GMAIL_REFRESH_TOKEN': 'token',
+            'GMAIL_SENDER_EMAIL': 'sender@example.com',
+        }.items():
+            SystemSetting.objects.update_or_create(key=key, defaults={'value': value})
+
+        form = BrandedPasswordResetForm(data={'email': 'missing@example.com'})
+
+        self.assertFalse(form.is_valid())
+        self.assertIn('No active account was found with that email address.', form.errors['email'])
 
     def test_authenticated_users_are_redirected_away_from_register(self):
         user = User.objects.create_user(

@@ -69,6 +69,10 @@ class UserPasswordResetView(PasswordResetView):
     success_url = reverse_lazy('password_reset_done')
     form_class = BrandedPasswordResetForm
 
+    def form_valid(self, form):
+        messages.success(self.request, "If an active account matches that email, we sent a password reset link.")
+        return super().form_valid(form)
+
 
 class UserPasswordResetDoneView(PasswordResetDoneView):
     template_name = 'auth_password_reset_done.html'

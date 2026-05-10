@@ -137,10 +137,20 @@ class EmailAuthenticationForm(AuthenticationForm):
 class BrandedPasswordResetForm(PasswordResetForm):
     email = forms.EmailField(label="Email address")
 
+    def clean(self):
+        cleaned_data = super().clean()
+        required_keys = ('GMAIL_CLIENT_ID', 'GMAIL_CLIENT_SECRET', 'GMAIL_REFRESH_TOKEN', 'GMAIL_SENDER_EMAIL')
+        missing_keys = [key for key in required_keys if not str(get_setting(key, default='') or '').strip()]
+        if missing_keys:
+            raise forms.ValidationError(
+                "Password reset email cannot be sent because Gmail credentials are not configured in Site Settings."
+            )
+        return cleaned_data
+
     def clean_email(self):
         email = (self.cleaned_data.get('email') or '').strip().lower()
         if not User.objects.filter(email__iexact=email, is_active=True).exists():
-            raise forms.ValidationError("No account was found with that email address.")
+            raise forms.ValidationError("No active account was found with that email address.")
         return email
 
     def send_mail(

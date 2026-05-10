@@ -7,9 +7,11 @@
     {% if field.help_text and field.field.widget.input_type != 'password' %}
       <div class="form-help">{{ field.help_text }}</div>
     {% endif %}
-    {% for error in field.errors %}
-      <div class="error-text">{{ error }}</div>
-    {% endfor %}
+    {% if show_field_errors|default:True %}
+      {% for error in field.errors %}
+        <div class="error-text">{{ error }}</div>
+      {% endfor %}
+    {% endif %}
   </div>
 {% endif %}
 

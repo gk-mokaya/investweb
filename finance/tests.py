@@ -155,7 +155,7 @@ class AdminInvestmentLedgerTests(TestCase):
         response = self.client.get(reverse('admin_investment_ledger_user', args=[self.user.id]))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'investor ledger history')
+        self.assertContains(response, 'Investment Ledger history')
         self.assertContains(response, 'Ledger Plan')
         self.assertContains(response, 'Settled')
         self.assertContains(response, 'Active')

@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from django.contrib.auth.models import User
 from django.core.cache import cache
+from django.db import transaction
 from django.test import TestCase
 from django.utils import timezone
 from django.urls import reverse
@@ -10,6 +11,8 @@ from django.urls import reverse
 from investments.models import DailyProfit, InvestmentPlan, UserInvestment
 from investments.services import (
     PROFIT_SYNC_SUMMARY_CACHE_KEY,
+    _acquire_profit_sync_lock,
+    _release_profit_sync_lock,
     apply_daily_profits,
     sync_investment_profits,
 )
@@ -159,6 +162,26 @@ class InvestmentProfitSyncTests(TestCase):
         self.assertEqual(summary['payouts_created'], 1)
         self.assertEqual(summary['investments_completed'], 1)
 
+    def test_second_sync_skips_when_lock_is_held(self):
+        plan = self._create_plan(payout_frequency='daily', duration_days=1, total_return='10.00')
+        investment = self._create_investment(plan, amount='100.00')
+
+        with transaction.atomic():
+            lock_handle = _acquire_profit_sync_lock()
+            self.assertIsNotNone(lock_handle)
+            try:
+                summary = sync_investment_profits(process_date=investment.end_date.date())
+            finally:
+                _release_profit_sync_lock(lock_handle)
+
+        self.wallet.refresh_from_db()
+        investment.refresh_from_db()
+        self.assertTrue(summary['skipped_lock'])
+        self.assertEqual(summary['payouts_created'], 0)
+        self.assertEqual(DailyProfit.objects.filter(investment=investment).count(), 0)
+        self.assertEqual(self.wallet.profit_balance, Decimal('0'))
+        self.assertFalse(investment.is_completed)
+
     def test_dashboard_page_renders_for_logged_in_user(self):
         from kyc.models import KYCProfile
 
@@ -168,7 +191,7 @@ class InvestmentProfitSyncTests(TestCase):
         response = self.client.get(reverse('dashboard'))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'One dashboard for capital, activity, and plan performance.')
+        self.assertContains(response, 'A compact control center for balances, investment flow, and plan health.')
 
 
 class PublicMarketingPagesTests(TestCase):
