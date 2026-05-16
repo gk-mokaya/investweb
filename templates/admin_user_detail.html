@@ -108,6 +108,55 @@
       <div class="card-title">Verification status</div>
       <div class="metric-value">{% if kyc_profile %}{{ kyc_profile.get_status_display }}{% else %}Not submitted{% endif %}</div>
       <div class="card-muted">Completion: {% if kyc_profile %}{{ kyc_profile.completion_percent }}{% else %}0{% endif %}%</div>
+      {% if kyc_profile %}
+        <div class="list-stack" style="margin-top:12px;">
+          <span class="badge {% if kyc_profile.is_automated_verification %}success{% else %}info{% endif %}">
+            {% if kyc_profile.is_automated_verification %}
+              Automated verification
+            {% else %}
+              Manual review
+            {% endif %}
+          </span>
+          {% if kyc_profile.revoked_at %}
+            <span class="badge danger">Revoked {{ kyc_profile.revoked_at|date:"M d, H:i" }}</span>
+          {% endif %}
+        </div>
+        {% if kyc_profile.review_note %}
+          <div class="card-muted" style="margin-top:10px;">Latest note: {{ kyc_profile.review_note }}</div>
+        {% endif %}
+        {% if kyc_profile.is_automated_verification %}
+          <form method="post" action="{% url 'admin_kyc_revoke' kyc_profile.id %}" style="margin-top:12px;">
+            {% csrf_token %}
+            <input type="hidden" name="review_note" value="Revoked after admin audit." />
+            <button class="btn danger" type="submit">Revoke automated verification</button>
+          </form>
+        {% endif %}
+      {% endif %}
+    </div>
+    <div class="card">
+      <div class="card-title">Verification timeline</div>
+      {% if kyc_latest_verification_run %}
+        <div class="card-muted">
+          Run #{{ kyc_latest_verification_run.id }} | {{ kyc_latest_verification_run.get_status_display }} | {{ kyc_latest_verification_run.progress_percent }}%
+        </div>
+        <div class="list-stack" style="margin-top:10px;">
+          {% for event in kyc_latest_verification_run.events.all %}
+            <div class="chip">
+              <strong>{{ event.stage_label }}</strong>
+              <span style="display:block; color: var(--muted); font-size: 11px; margin-top: 2px;">
+                {{ event.status|default:'event' }} | {{ event.percent }}% | {{ event.created_at|date:"M d, H:i:s" }}
+              </span>
+              {% if event.message %}
+                <span style="display:block; color: var(--muted); font-size: 11px; margin-top: 3px;">{{ event.message }}</span>
+              {% endif %}
+            </div>
+          {% empty %}
+            <div class="empty-state">No verification events yet.</div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state">No automatic verification runs yet.</div>
+      {% endif %}
     </div>
     <div class="card">
       <div class="card-title">Recent login history</div>

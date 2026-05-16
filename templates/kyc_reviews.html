@@ -18,7 +18,7 @@
     <table class="table">
       <thead>
         <tr>
-          <th colspan="5">
+          <th colspan="6">
             <form class="filters-bar filters-inline" method="get" data-auto-submit="true">
               <input class="filters-search" type="text" name="q" value="{{ request.GET.q }}" placeholder="Search user or ID" />
               <select class="filter-chip" name="status">
@@ -37,6 +37,7 @@
           <th>User</th>
           <th>Full Name</th>
           <th>Status</th>
+          <th>Method</th>
           <th>Submitted</th>
           <th>Actions</th>
         </tr>
@@ -46,29 +47,53 @@
           <tr>
             <td data-label="User">{{ profile.user.username }}</td>
             <td data-label="Full Name">{{ profile.full_name|default:'-' }}</td>
-            <td data-label="Status">{{ profile.get_status_display }}</td>
+            <td data-label="Status">
+              <span class="badge {% if profile.status == 'verified' %}success{% elif profile.status == 'rejected' %}danger{% else %}warning{% endif %}">
+                {{ profile.get_status_display }}
+              </span>
+            </td>
+            <td data-label="Method">
+              {% if profile.status == 'verified' and profile.verification_method == 'automated' %}
+                <span class="badge success">Automated</span>
+              {% elif profile.status == 'verified' %}
+                <span class="badge info">Manual</span>
+              {% else %}
+                <span class="badge">-</span>
+              {% endif %}
+            </td>
             <td data-label="Submitted">{{ profile.submitted_at|date:"M d, Y"|default:'-' }}</td>
             <td data-label="Actions">
               <div class="table-actions">
                 <button class="icon-pill" data-modal-open="#kycView{{ profile.id }}" type="button">
                   <svg class="icon sm"><use href="#icon-eye"></use></svg>
                 </button>
-                <form method="post" action="{% url 'admin_kyc_approve' profile.id %}">
-                  {% csrf_token %}
-                  <input type="hidden" name="review_note" value="Approved" />
-                  <button class="btn small success" type="submit">Approve</button>
-                </form>
-                <form method="post" action="{% url 'admin_kyc_reject' profile.id %}">
-                  {% csrf_token %}
-                  <input type="hidden" name="review_note" value="Rejected" />
-                  <button class="btn small danger" type="submit">Reject</button>
-                </form>
+                {% if profile.status != 'verified' %}
+                  <form method="post" action="{% url 'admin_kyc_approve' profile.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="review_note" value="Approved" />
+                    <button class="btn small success" type="submit">Approve</button>
+                  </form>
+                {% endif %}
+                {% if profile.status != 'rejected' %}
+                  <form method="post" action="{% url 'admin_kyc_reject' profile.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="review_note" value="Rejected" />
+                    <button class="btn small danger" type="submit">Reject</button>
+                  </form>
+                {% endif %}
+                {% if profile.is_automated_verification %}
+                  <form method="post" action="{% url 'admin_kyc_revoke' profile.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="review_note" value="Revoked after admin audit." />
+                    <button class="btn small ghost" type="submit">Revoke auto-verification</button>
+                  </form>
+                {% endif %}
               </div>
             </td>
           </tr>
         {% empty %}
           <tr>
-            <td colspan="5">
+            <td colspan="6">
               <div class="empty-state">No KYC submissions found.</div>
             </td>
           </tr>
@@ -96,19 +121,36 @@
           <div class="info-chip"><div class="info-chip-label">Country</div><div class="info-chip-value">{{ profile.country|default:'-' }}</div></div>
           <div class="info-chip"><div class="info-chip-label">ID Type</div><div class="info-chip-value">{{ profile.get_id_type_display }}</div></div>
           <div class="info-chip"><div class="info-chip-label">ID Number</div><div class="info-chip-value">{{ profile.id_number|default:'-' }}</div></div>
+          <div class="info-chip"><div class="info-chip-label">Verification Method</div><div class="info-chip-value">{% if profile.status == 'verified' and profile.verification_method == 'automated' %}Automated{% elif profile.status == 'verified' %}Manual{% else %}-{% endif %}</div></div>
+          <div class="info-chip"><div class="info-chip-label">Review Note</div><div class="info-chip-value">{{ profile.review_note|default:'-' }}</div></div>
+          {% if profile.revoked_at %}
+            <div class="info-chip"><div class="info-chip-label">Revoked At</div><div class="info-chip-value">{{ profile.revoked_at|date:"M d, Y H:i" }}</div></div>
+            <div class="info-chip"><div class="info-chip-label">Revocation Note</div><div class="info-chip-value">{{ profile.revocation_note|default:'-' }}</div></div>
+          {% endif %}
         </div>
       </div>
       <div class="modal-footer">
-        <form method="post" action="{% url 'admin_kyc_approve' profile.id %}">
-          {% csrf_token %}
-          <input type="hidden" name="review_note" value="Approved" />
-          <button class="btn success" type="submit">Approve</button>
-        </form>
-        <form method="post" action="{% url 'admin_kyc_reject' profile.id %}">
-          {% csrf_token %}
-          <input type="hidden" name="review_note" value="Rejected" />
-          <button class="btn danger" type="submit">Reject</button>
-        </form>
+        {% if profile.status != 'verified' %}
+          <form method="post" action="{% url 'admin_kyc_approve' profile.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="review_note" value="Approved" />
+            <button class="btn success" type="submit">Approve</button>
+          </form>
+        {% endif %}
+        {% if profile.status != 'rejected' %}
+          <form method="post" action="{% url 'admin_kyc_reject' profile.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="review_note" value="Rejected" />
+            <button class="btn danger" type="submit">Reject</button>
+          </form>
+        {% endif %}
+        {% if profile.is_automated_verification %}
+          <form method="post" action="{% url 'admin_kyc_revoke' profile.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="review_note" value="Revoked after admin audit." />
+            <button class="btn ghost" type="submit">Revoke auto-verification</button>
+          </form>
+        {% endif %}
         <button class="btn ghost" type="button" data-modal-close>Close</button>
       </div>
     </div>

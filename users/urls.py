@@ -4,6 +4,7 @@ from users.views import (
     KYCApproveView,
     KYCDownloadView,
     KYCRejectView,
+    KYCRevokeView,
     KYCReviewListView,
     UserAdminCreateView,
     UserAdminDetailView,
@@ -24,5 +25,6 @@ urlpatterns = [
     path('kyc/', KYCReviewListView.as_view(), name='admin_kyc_reviews'),
     path('kyc/<int:pk>/approve/', KYCApproveView.as_view(), name='admin_kyc_approve'),
     path('kyc/<int:pk>/reject/', KYCRejectView.as_view(), name='admin_kyc_reject'),
+    path('kyc/<int:pk>/revoke/', KYCRevokeView.as_view(), name='admin_kyc_revoke'),
     path('kyc/<int:pk>/download/', KYCDownloadView.as_view(), name='admin_kyc_download'),
 ]

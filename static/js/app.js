@@ -1275,5 +1275,235 @@
     });
   }
 
+  function isFinalVerificationStatus(status) {
+    return status === 'verified' || status === 'manual_review' || status === 'rejected' || status === 'failed';
+  }
+
+  function humanizeVerificationStatus(status) {
+    var map = {
+      queued: 'Queued',
+      processing: 'Processing',
+      verified: 'Verified',
+      manual_review: 'Manual review',
+      rejected: 'Rejected',
+      failed: 'Failed',
+    };
+    return map[status] || 'Queued';
+  }
+
+  function updateKYCVerificationModal(modal, run, stages) {
+    if (!modal || !run) return;
+    var statusLabel = modal.querySelector('[data-kyc-verification-status]');
+    var title = modal.querySelector('[data-kyc-verification-title]');
+    var percentLabel = modal.querySelector('[data-kyc-progress-percent]');
+    var progressBar = modal.querySelector('[data-kyc-progress-bar]');
+    var summary = modal.querySelector('[data-kyc-stage-message]');
+    var continueButton = modal.querySelector('[data-kyc-progress-continue]');
+    var redirectUrl = modal.getAttribute('data-kyc-verification-redirect-url') || '';
+    var stageItems = modal.querySelectorAll('[data-stage-item]');
+    var stageEntries = {};
+    var stageIndex = {};
+    var i;
+
+    stages = stages || [];
+    for (i = 0; i < stages.length; i += 1) {
+      if (stages[i] && stages[i].key) {
+        stageIndex[stages[i].key] = i;
+      }
+    }
+    (run.stage_log || []).forEach(function (entry) {
+      if (entry && entry.stage_key) {
+        stageEntries[entry.stage_key] = entry;
+      }
+    });
+
+    if (statusLabel) statusLabel.textContent = humanizeVerificationStatus(run.status);
+    if (title) title.textContent = run.status === 'verified' ? 'Verification complete' : (run.stage_label || 'Verification in progress');
+    if (percentLabel) percentLabel.textContent = (run.progress_percent || 0) + '%';
+    if (progressBar) progressBar.style.width = Math.max(0, Math.min(100, run.progress_percent || 0)) + '%';
+
+    if (summary) {
+      if (run.error_message) {
+        summary.textContent = run.error_message;
+      } else if (run.status === 'verified') {
+        summary.textContent = 'Your verification passed automatically. You can continue using the platform.';
+      } else if (run.status === 'manual_review') {
+        summary.textContent = 'Your verification needs a quick manual review before access is fully unlocked.';
+      } else if (run.status === 'rejected') {
+        summary.textContent = 'Verification was rejected. Please review the details and try again if needed.';
+      } else if (run.status === 'failed') {
+        summary.textContent = 'Verification stopped unexpectedly. Please retry or contact support.';
+      } else {
+        summary.textContent = 'We are checking your details right now.';
+      }
+    }
+
+    stageItems.forEach(function (item) {
+      var key = item.getAttribute('data-stage-key');
+      var percent = parseInt(item.getAttribute('data-stage-percent') || '0', 10);
+      var entry = stageEntries[key];
+      var complete = false;
+      var active = false;
+      var stateNode = item.querySelector('[data-stage-state]');
+      if (entry) {
+        active = entry.status === 'processing';
+        complete = entry.status === 'verified' || entry.status === 'manual_review' || entry.status === 'rejected' || entry.status === 'failed' || run.progress_percent >= percent;
+        if (stateNode) {
+          stateNode.textContent = entry.message || entry.stage_label || humanizeVerificationStatus(entry.status);
+        }
+      } else if (stageIndex.hasOwnProperty(key)) {
+        complete = run.progress_percent >= percent && !isFinalVerificationStatus(run.status);
+        active = run.current_stage === key && !isFinalVerificationStatus(run.status);
+      }
+      item.classList.toggle('is-complete', !!complete);
+      item.classList.toggle('is-active', !!active);
+      if (!entry && stateNode) {
+        stateNode.textContent = complete ? 'Completed' : 'Pending';
+      }
+    });
+
+    if (continueButton) {
+      continueButton.hidden = run.status !== 'verified';
+    }
+
+    if (modal.dataset.kycVerificationAutoRedirect === 'true' && run.status === 'verified' && modal.dataset.kycVerificationRedirected !== 'true') {
+      modal.dataset.kycVerificationRedirected = 'true';
+      if (continueButton) {
+        continueButton.hidden = false;
+      }
+      window.setTimeout(function () {
+        closeModal(modal);
+        if (redirectUrl) {
+          window.location.href = redirectUrl;
+        }
+      }, 1200);
+    }
+  }
+
+  function initKYCVerificationTrackers() {
+    document.querySelectorAll('[data-kyc-verification-modal]').forEach(function (modal) {
+      if (modal.dataset.kycVerificationBound === 'true') return;
+      modal.dataset.kycVerificationBound = 'true';
+
+      var runId = modal.getAttribute('data-kyc-verification-run-id');
+      var statusUrl = modal.getAttribute('data-kyc-verification-status-url');
+      var autoRedirect = modal.getAttribute('data-kyc-verification-auto-redirect') === 'true';
+      var useWebsocket = modal.getAttribute('data-kyc-verification-use-websocket') === 'true';
+      var stages = [];
+      var socket = null;
+      var pollTimer = null;
+      var reconnectTimer = null;
+      var stopped = false;
+
+      try {
+        stages = JSON.parse(modal.getAttribute('data-kyc-verification-stages') || '[]');
+      } catch (error) {
+        stages = [];
+      }
+
+      function applyRun(run) {
+        if (!run) return;
+        modal.dataset.kycVerificationAutoRedirect = autoRedirect ? 'true' : 'false';
+        updateKYCVerificationModal(modal, run, stages);
+        if (isFinalVerificationStatus(run.status)) {
+          stopTracking();
+        }
+      }
+
+      function fetchState() {
+        if (!statusUrl || stopped) return;
+        fetch(statusUrl, { credentials: 'same-origin' })
+          .then(function (response) { return response.ok ? response.json() : null; })
+          .then(function (data) {
+            if (data && data.run) {
+              if (data.stages && data.stages.length) {
+                stages = data.stages;
+              }
+              applyRun(data.run);
+            }
+          })
+          .catch(function () {});
+      }
+
+      function startPolling() {
+        if (pollTimer || stopped) return;
+        fetchState();
+        pollTimer = window.setInterval(fetchState, 2000);
+      }
+
+      function stopPolling() {
+        if (pollTimer) {
+          window.clearInterval(pollTimer);
+          pollTimer = null;
+        }
+      }
+
+      function stopTracking() {
+        stopped = true;
+        stopPolling();
+        if (reconnectTimer) {
+          window.clearTimeout(reconnectTimer);
+          reconnectTimer = null;
+        }
+        if (socket) {
+          try { socket.close(); } catch (error) {}
+          socket = null;
+        }
+      }
+
+      function connectSocket() {
+        if (stopped || !runId || !useWebsocket || !('WebSocket' in window)) {
+          startPolling();
+          return;
+        }
+
+        var scheme = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+        var wsUrl = scheme + window.location.host + '/ws/kyc/verifications/' + runId + '/';
+
+        try {
+          socket = new WebSocket(wsUrl);
+        } catch (error) {
+          startPolling();
+          return;
+        }
+
+        socket.addEventListener('open', function () {
+          stopPolling();
+          try {
+            socket.send(JSON.stringify({ action: 'refresh' }));
+          } catch (error) {}
+        });
+
+        socket.addEventListener('message', function (event) {
+          var data = {};
+          try {
+            data = JSON.parse(event.data || '{}');
+          } catch (error) {
+            data = {};
+          }
+          if (data.run) {
+            applyRun(data.run);
+          }
+        });
+
+        socket.addEventListener('close', function () {
+          if (!stopped) {
+            stopPolling();
+            reconnectTimer = window.setTimeout(connectSocket, 1500);
+          }
+        });
+
+        socket.addEventListener('error', function () {
+          stopPolling();
+          startPolling();
+        });
+      }
+
+      fetchState();
+      connectSocket();
+    });
+  }
+
+  initKYCVerificationTrackers();
   renderScheduleTables();
 })();

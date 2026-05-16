@@ -27,6 +27,29 @@ class StaffOnlyMixin(UserPassesTestMixin):
         return self.request.user.is_staff
 
 
+def _approve_kyc_profile(profile: KYCProfile, actor, review_note: str = '', method: str = 'manual') -> str:
+    if profile.is_underage():
+        profile.status = 'rejected'
+        profile.reviewed_at = timezone.now()
+        profile.verification_method = 'manual'
+        profile.review_note = 'Rejected: applicant is under 16.'
+        profile.revoked_at = None
+        profile.revoked_by = None
+        profile.revocation_note = ''
+        profile.save(update_fields=['status', 'reviewed_at', 'verification_method', 'review_note', 'revoked_at', 'revoked_by', 'revocation_note'])
+        log_action(actor, 'kyc_rejected', 'kyc', profile.id, {'user': profile.user.username, 'reason': 'underage'})
+        return 'rejected'
+
+    profile.mark_verified(method=method, review_note=review_note)
+    profile.save(update_fields=['status', 'reviewed_at', 'verification_method', 'review_note', 'revoked_at', 'revoked_by', 'revocation_note'])
+    return 'verified'
+
+
+def _revoke_kyc_profile(profile: KYCProfile, actor, note: str = '') -> None:
+    profile.revoke_verification(actor=actor, note=note)
+    profile.save(update_fields=['status', 'reviewed_at', 'revoked_at', 'revoked_by', 'revocation_note', 'review_note'])
+
+
 class UserAdminListView(LoginRequiredMixin, StaffOnlyMixin, ListView):
     template_name = 'admin_users.html'
     model = User
@@ -92,10 +115,16 @@ class UserAdminDetailView(LoginRequiredMixin, StaffOnlyMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         user_obj = get_object_or_404(User.objects.select_related('userprofile'), pk=self.kwargs['pk'])
         profile, _ = UserProfile.objects.get_or_create(user=user_obj)
+        kyc_profile = KYCProfile.objects.filter(user=user_obj).first()
+        kyc_verification_runs = []
+        if kyc_profile:
+            kyc_verification_runs = list(kyc_profile.verification_runs.prefetch_related('events').order_by('-created_at')[:5])
         context['target_user'] = user_obj
         context['user_form'] = AdminUserForm(instance=user_obj)
         context['profile_form'] = UserProfileAdminForm(instance=profile)
-        context['kyc_profile'] = KYCProfile.objects.filter(user=user_obj).first()
+        context['kyc_profile'] = kyc_profile
+        context['kyc_verification_runs'] = kyc_verification_runs
+        context['kyc_latest_verification_run'] = kyc_verification_runs[0] if kyc_verification_runs else None
         context['login_logs'] = LoginLog.objects.filter(user=user_obj).order_by('-created_at')[:10]
         return context
 
@@ -190,7 +219,7 @@ class KYCReviewListView(LoginRequiredMixin, StaffOnlyMixin, ListView):
     def get_queryset(self):
         status = self.request.GET.get('status', '').strip()
         query = self.request.GET.get('q', '').strip()
-        queryset = KYCProfile.objects.select_related('user').order_by('-submitted_at')
+        queryset = KYCProfile.objects.select_related('user', 'revoked_by').order_by('-reviewed_at', '-submitted_at')
         if status:
             queryset = queryset.filter(status=status)
         if query:
@@ -206,11 +235,12 @@ class KYCReviewListView(LoginRequiredMixin, StaffOnlyMixin, ListView):
 class KYCApproveView(LoginRequiredMixin, StaffOnlyMixin, View):
     def post(self, request, pk):
         profile = get_object_or_404(KYCProfile, pk=pk)
-        profile.status = 'verified'
-        profile.reviewed_at = timezone.now()
-        profile.review_note = request.POST.get('review_note', '')
-        profile.save(update_fields=['status', 'reviewed_at', 'review_note'])
-        log_action(request.user, 'kyc_approved', 'kyc', profile.id, {'user': profile.user.username})
+        review_note = request.POST.get('review_note', '').strip()
+        result = _approve_kyc_profile(profile, request.user, review_note=review_note or 'Approved by admin.', method='manual')
+        if result == 'rejected':
+            messages.error(request, 'KYC rejected because the applicant is under 16.')
+            return redirect(f"{reverse_lazy('admin_kyc_reviews')}?tab=kyc")
+        log_action(request.user, 'kyc_approved', 'kyc', profile.id, {'user': profile.user.username, 'method': 'manual'})
         messages.success(request, 'KYC approved.')
         return redirect(f"{reverse_lazy('admin_kyc_reviews')}?tab=kyc")
 
@@ -224,6 +254,26 @@ class KYCRejectView(LoginRequiredMixin, StaffOnlyMixin, View):
         profile.save(update_fields=['status', 'reviewed_at', 'review_note'])
         log_action(request.user, 'kyc_rejected', 'kyc', profile.id, {'user': profile.user.username})
         messages.error(request, 'KYC rejected.')
+        return redirect(f"{reverse_lazy('admin_kyc_reviews')}?tab=kyc")
+
+
+class KYCRevokeView(LoginRequiredMixin, StaffOnlyMixin, View):
+    def post(self, request, pk):
+        profile = get_object_or_404(KYCProfile, pk=pk)
+        if not profile.is_automated_verification:
+            messages.warning(request, 'Only automated verifications can be revoked from this action.')
+            return redirect(f"{reverse_lazy('admin_kyc_reviews')}?tab=kyc")
+
+        note = request.POST.get('review_note', '').strip() or 'Automated verification revoked after manual audit.'
+        _revoke_kyc_profile(profile, request.user, note=note)
+        log_action(
+            request.user,
+            'kyc_revoked',
+            'kyc',
+            profile.id,
+            {'user': profile.user.username, 'verification_method': profile.verification_method, 'note': note},
+        )
+        messages.warning(request, 'Automated KYC verification revoked and returned to pending review.')
         return redirect(f"{reverse_lazy('admin_kyc_reviews')}?tab=kyc")
 
 

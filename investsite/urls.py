@@ -25,6 +25,7 @@ urlpatterns = [
     path('accounts/', include('accounts.urls')),
     path('deposits/', include('deposits.urls')),
     path('withdrawals/', include('withdrawals.urls')),
+    path('kyc/', include('kyc.urls')),
     path('staff/', include('adminpanel.urls')),
     path('', include('supportchat.urls')),
 ]

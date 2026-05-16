@@ -11,6 +11,11 @@ class KYCProfile(models.Model):
         ('rejected', 'Rejected'),
     ]
 
+    VERIFICATION_METHOD_CHOICES = [
+        ('manual', 'Manual'),
+        ('automated', 'Automated'),
+    ]
+
     ID_TYPE_CHOICES = [
         ('national_id', 'National ID'),
         ('passport', 'Passport'),
@@ -37,7 +42,17 @@ class KYCProfile(models.Model):
     selfie_photo = models.FileField(upload_to='kyc/', blank=True, null=True)
     submitted_at = models.DateTimeField(null=True, blank=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)
+    verification_method = models.CharField(max_length=20, choices=VERIFICATION_METHOD_CHOICES, default='manual')
     review_note = models.TextField(blank=True, default='')
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    revoked_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='kyc_revocations',
+    )
+    revocation_note = models.TextField(blank=True, default='')
 
     def __str__(self) -> str:
         return f"KYC {self.user.username} - {self.status}"
@@ -45,6 +60,24 @@ class KYCProfile(models.Model):
     def mark_submitted(self):
         self.status = 'pending'
         self.submitted_at = timezone.now()
+
+    def mark_verified(self, method: str = 'manual', review_note: str = ''):
+        self.status = 'verified'
+        self.reviewed_at = timezone.now()
+        self.verification_method = method
+        self.review_note = review_note
+        self.revoked_at = None
+        self.revoked_by = None
+        self.revocation_note = ''
+
+    def revoke_verification(self, actor=None, note: str = ''):
+        now = timezone.now()
+        self.status = 'pending'
+        self.reviewed_at = now
+        self.revoked_at = now
+        self.revoked_by = actor
+        self.revocation_note = note
+        self.review_note = note or self.review_note
 
     def age_years(self) -> int | None:
         if not self.date_of_birth:
@@ -119,5 +152,56 @@ class KYCProfile(models.Model):
         if not self.selfie_photo:
             missing.append('Selfie photo')
         return missing
+
+    @property
+    def is_automated_verification(self) -> bool:
+        return self.status == 'verified' and self.verification_method == 'automated'
+
+
+class KYCVerificationRun(models.Model):
+    STATUS_CHOICES = [
+        ('queued', 'Queued'),
+        ('processing', 'Processing'),
+        ('verified', 'Verified'),
+        ('manual_review', 'Manual Review'),
+        ('rejected', 'Rejected'),
+        ('failed', 'Failed'),
+    ]
+
+    profile = models.ForeignKey(KYCProfile, on_delete=models.CASCADE, related_name='verification_runs')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='queued')
+    current_stage = models.CharField(max_length=40, blank=True, default='queued')
+    stage_label = models.CharField(max_length=120, blank=True, default='Queued')
+    progress_percent = models.PositiveSmallIntegerField(default=0)
+    risk_score = models.PositiveSmallIntegerField(default=0)
+    error_message = models.TextField(blank=True, default='')
+    stage_log = models.JSONField(blank=True, default=list)
+    metadata = models.JSONField(blank=True, default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ('-created_at', '-id')
+
+    def __str__(self) -> str:
+        return f"KYC run {self.id} - {self.profile.user.username} - {self.status}"
+
+
+class KYCVerificationEvent(models.Model):
+    run = models.ForeignKey(KYCVerificationRun, on_delete=models.CASCADE, related_name='events')
+    stage_key = models.CharField(max_length=40)
+    stage_label = models.CharField(max_length=120)
+    status = models.CharField(max_length=20, blank=True, default='')
+    message = models.TextField(blank=True, default='')
+    percent = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ('created_at', 'id')
+
+    def __str__(self) -> str:
+        return f"{self.run_id}:{self.stage_key}:{self.percent}"
 
 # Create your models here.

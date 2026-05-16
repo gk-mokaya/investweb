@@ -1,0 +1,56 @@
+{% if kyc_verification_run %}
+<div
+  class="modal modal-mobile-full"
+  id="kycProgressModal"
+  data-open="{% if open_kyc_progress_modal %}true{% endif %}"
+  data-kyc-verification-modal
+  data-kyc-verification-run-id="{{ kyc_verification_run.id }}"
+  data-kyc-verification-status-url="{% url 'kyc_verification_status' kyc_verification_run.id %}"
+  data-kyc-verification-redirect-url="{% url 'dashboard' %}"
+  data-kyc-verification-use-websocket="false"
+  data-kyc-verification-auto-redirect="{% if open_kyc_progress_modal %}true{% else %}false{% endif %}"
+>
+  <div class="modal-backdrop" data-modal-close></div>
+  <div class="modal-dialog kyc-verification-modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" data-kyc-verification-title>Verification in progress</div>
+        <div class="card-muted">Automatic checks are running now.</div>
+      </div>
+      <button class="modal-close" type="button" data-modal-close><svg class="icon sm"><use href="#icon-x"></use></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="kyc-verification-head">
+        <div class="kyc-verification-status-pill" data-kyc-verification-status>{{ kyc_verification_run.get_status_display }}</div>
+        <div class="kyc-verification-percent"><span data-kyc-progress-percent>{{ kyc_verification_run.progress_percent }}%</span> complete</div>
+      </div>
+      <div class="progress kyc-verification-progress">
+        <span data-kyc-progress-bar style="width: {{ kyc_verification_run.progress_percent }}%"></span>
+      </div>
+      <div class="kyc-verification-stage-list">
+        {% for stage in kyc_verification_stages %}
+          <div class="kyc-verification-stage-item {% if forloop.first %}is-active{% endif %}" data-stage-item data-stage-key="{{ stage.key }}" data-stage-percent="{{ stage.percent }}">
+            <div class="kyc-verification-stage-dot"></div>
+            <div class="kyc-verification-stage-copy">
+              <strong>{{ stage.label }}</strong>
+              <span data-stage-state>Pending</span>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+      <div class="kyc-verification-summary" data-kyc-stage-message>
+        We are starting your automatic verification.
+      </div>
+      {% if kyc_verification_run.error_message %}
+        <div class="alert warning" style="margin-top:12px;">
+          <div>{{ kyc_verification_run.error_message }}</div>
+        </div>
+      {% endif %}
+    </div>
+    <div class="modal-footer">
+      <button class="btn ghost" type="button" data-modal-close data-kyc-progress-close>Close</button>
+      <button class="btn primary" type="button" data-kyc-progress-continue hidden data-modal-close>Continue</button>
+    </div>
+  </div>
+</div>
+{% endif %}

@@ -18,6 +18,8 @@ from accounts.forms import (
 from accounts.models import Notification, UserProfile
 from kyc.forms import KYCForm
 from kyc.models import KYCProfile
+from kyc.background import start_verification_background
+from kyc.services import VERIFICATION_STAGES, create_verification_run, get_latest_verification_run
 from accounts.services import create_notification
 from wallets.forms import WalletCreateForm, WalletTransferForm
 from wallets.models import Wallet
@@ -95,14 +97,18 @@ class ProfileView(TemplateView):
         context = super().get_context_data(**kwargs)
         user_profile, _ = UserProfile.objects.get_or_create(user=self.request.user)
         profile, _ = KYCProfile.objects.get_or_create(user=self.request.user)
+        verification_run = get_latest_verification_run(profile)
         context['kyc_profile'] = profile
         context['user_profile'] = user_profile
         context['profile_form'] = context.get('profile_form') or ProfileUpdateForm(user=self.request.user, profile=profile)
         context['open_profile_modal'] = False
         context['open_kyc_modal'] = False
+        context['open_kyc_progress_modal'] = bool(verification_run and verification_run.status in {'queued', 'processing'})
         context['kyc_step'] = '1'
         context['kyc_form'] = KYCForm(instance=profile, step=context['kyc_step'])
         context['form'] = context['kyc_form']
+        context['kyc_verification_run'] = verification_run
+        context['kyc_verification_stages'] = VERIFICATION_STAGES
         context['wallets'] = Wallet.objects.filter(user=self.request.user).order_by('-is_default', 'created_at')
         context['wallet_total_balance'] = sum((wallet.total_balance for wallet in context['wallets']), start=0)
         context['open_wallet_create_modal'] = False
@@ -177,14 +183,23 @@ class ProfileView(TemplateView):
                 profile.mark_submitted()
                 updated_fields.extend(['status', 'submitted_at'])
                 profile.save(update_fields=updated_fields)
-                messages.success(request, "KYC submitted successfully. We'll review it shortly.")
+                verification_run = create_verification_run(profile, actor=request.user)
+                start_verification_background(verification_run.id)
+                messages.success(request, "KYC submitted successfully. Automatic verification has started.")
                 create_notification(
                     request.user,
                     "KYC submitted",
-                    "Your verification documents are under review.",
+                    "Your automatic verification is now in progress.",
                     level='info',
                 )
-                return self.get(request, *args, **kwargs)
+                context = self.get_context_data()
+                context['kyc_verification_run'] = verification_run
+                context['kyc_verification_stages'] = VERIFICATION_STAGES
+                context['open_kyc_progress_modal'] = True
+                context['kyc_step'] = '3'
+                context['kyc_form'] = KYCForm(instance=profile, step='3')
+                context['form'] = context['kyc_form']
+                return self.render_to_response(context)
 
             profile.save(update_fields=updated_fields)
             context = self.get_context_data()

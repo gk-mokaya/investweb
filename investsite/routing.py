@@ -1,1 +1,5 @@
-from supportchat.routing import websocket_urlpatterns
+from supportchat.routing import websocket_urlpatterns as supportchat_websocket_urlpatterns
+from kyc.routing import websocket_urlpatterns as kyc_websocket_urlpatterns
+
+
+websocket_urlpatterns = supportchat_websocket_urlpatterns + kyc_websocket_urlpatterns

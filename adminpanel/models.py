@@ -21,6 +21,8 @@ class AuditLog(models.Model):
         ('login', 'Login'),
         ('kyc_approved', 'KYC Approved'),
         ('kyc_rejected', 'KYC Rejected'),
+        ('kyc_auto_verified', 'KYC Auto Verified'),
+        ('kyc_revoked', 'KYC Revoked'),
     ]
 
     actor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='audit_actions')
