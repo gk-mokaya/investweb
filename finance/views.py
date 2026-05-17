@@ -316,6 +316,8 @@ class SiteSettingsPageView(LoginRequiredMixin, StaffOnlyMixin, TemplateView):
         site_keys = [
             'PROJECT_NAME',
             'SITE_TAGLINE',
+            'SITE_LOGO',
+            'SITE_FAVICON',
             'SUPPORT_EMAIL',
             'SUPPORT_PHONE',
             'SUPPORT_ADDRESS',
@@ -335,6 +337,7 @@ class SiteSettingsPageView(LoginRequiredMixin, StaffOnlyMixin, TemplateView):
             'MANUAL_DEPOSIT_WALLET_ADDRESS',
         ]
         context['site_settings'] = {key: get_setting(key, default=DEFAULT_SETTINGS.get(key, '')) for key in site_keys}
+
         context['payment_config'] = PaymentConfiguration.objects.first()
         context['payment_mode_choices'] = PaymentConfiguration.MODE_CHOICES
         context['crypto_provider_choices'] = [('manual', 'Manual Only'), ('blockcypher', 'BlockCypher')]
@@ -513,7 +516,23 @@ class AdminSiteSettingsView(LoginRequiredMixin, StaffOnlyMixin, View):
             'GMAIL_SENDER_EMAIL': request.POST.get('gmail_sender_email', '').strip(),
             'MANUAL_DEPOSIT_WALLET_ADDRESS': request.POST.get('manual_deposit_wallet_address', '').strip(),
         }
+
+        site_logo_file = request.FILES.get('site_logo')
+        if site_logo_file:
+            from django.core.files.storage import default_storage
+            from django.utils.text import get_valid_filename
+
+            # Store under: media/site_branding/logo/<filename>
+            safe_name = get_valid_filename(site_logo_file.name) or 'site-logo'
+            stored_path = default_storage.save(f'site_branding/logo/{safe_name}', site_logo_file)
+            url = default_storage.url(stored_path)
+
+            # Logo also acts as favicon
+            upsert_setting('SITE_LOGO', url)
+            upsert_setting('SITE_FAVICON', url)
+
         for key, value in settings_map.items():
+
             if key in numeric_settings and value == '':
                 value = str(get_setting(key, default=DEFAULT_SETTINGS.get(key, '0')))
             upsert_setting(key, value)

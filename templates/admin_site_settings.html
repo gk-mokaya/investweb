@@ -27,6 +27,18 @@
           <label>Site Tagline</label>
           <input type="text" name="site_tagline" value="{{ site_settings.SITE_TAGLINE }}" />
         </div>
+
+        <div class="form-group span-2">
+          <label>Update Logo (also used as favicon)</label>
+          {% if site_settings.SITE_LOGO %}
+            <div class="form-help" style="margin-bottom:8px;">Current:</div>
+            <div style="margin-bottom:12px;">
+              <img src="{{ site_settings.SITE_LOGO }}" alt="Site logo" style="height:48px; width:auto; object-fit:contain; border-radius:6px;" />
+            </div>
+          {% endif %}
+          <input type="file" name="site_logo" accept="image/*" />
+        </div>
+
         <div class="form-group">
           <label>Support Email</label>
           <input type="email" name="support_email" value="{{ site_settings.SUPPORT_EMAIL }}" />
