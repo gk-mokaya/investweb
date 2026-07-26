@@ -44,11 +44,11 @@ class InvestmentAccount(models.Model):
 
     @property
     def active_positions(self):
-        return self.positions.filter(is_completed=False)
+        return self.positions.filter(status='active')
 
     @property
     def completed_positions(self):
-        return self.positions.filter(is_completed=True)
+        return self.positions.filter(status='completed')
 
     @property
     def active_principal(self) -> Decimal:
@@ -199,6 +199,13 @@ class InvestmentPlan(models.Model):
 
 
 class UserInvestment(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('active', 'Active'),
+        ('completed', 'Completed'),
+        ('cancelled', 'Cancelled'),
+    ]
+
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     wallet = models.ForeignKey('wallets.Wallet', on_delete=models.PROTECT)
     account = models.ForeignKey(InvestmentAccount, on_delete=models.CASCADE, related_name='positions', null=True, blank=True)
@@ -206,6 +213,9 @@ class UserInvestment(models.Model):
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     start_date = models.DateTimeField(auto_now_add=True)
     end_date = models.DateTimeField()
+    activated_at = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
+    reserved_bonus_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0'))
     total_earned = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0'))
     is_completed = models.BooleanField(default=False)
     settled_at = models.DateTimeField(null=True, blank=True)
@@ -225,6 +235,29 @@ class UserInvestment(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user.username} - {self.effective_plan_name}"
+
+    @property
+    def is_pending(self) -> bool:
+        return self.status == 'pending'
+
+    @property
+    def is_active(self) -> bool:
+        return self.status == 'active'
+
+    @property
+    def effective_start_date(self):
+        return self.activated_at or self.start_date
+
+    @property
+    def effective_end_date(self):
+        return self.end_date
+
+    def save(self, *args, **kwargs):
+        if self.status == 'completed':
+            self.is_completed = True
+        elif self.status in {'pending', 'active', 'cancelled'}:
+            self.is_completed = False
+        super().save(*args, **kwargs)
 
     def snapshot_plan_terms(self, plan: InvestmentPlan | None = None) -> None:
         plan = plan or self.plan

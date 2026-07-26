@@ -253,8 +253,10 @@
                   {{ investment.end_date|date:"M d, Y" }}
                 </div>
                 <div class="dashboard-investment-cell dashboard-investment-cell-status">
-                  {% if investment.is_completed %}
+                  {% if investment.status == 'completed' %}
                     <span class="badge success">Completed</span>
+                  {% elif investment.status == 'pending' %}
+                    <span class="badge warning">Pending approval</span>
                   {% else %}
                     <span class="badge info">Active</span>
                   {% endif %}

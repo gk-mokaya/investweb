@@ -5,7 +5,7 @@ from datetime import date, timedelta
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Sum
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.views.generic import FormView, ListView, TemplateView
@@ -21,6 +21,7 @@ from wallets.services import get_primary_wallet
 from investments.services import get_investment_account
 from settingsconfig.utils import get_setting, get_setting_decimal
 from withdrawals.models import Withdrawal
+from urllib.parse import urlencode
 
 
 def attach_profit_schedule(investments, max_rows=30):
@@ -153,7 +154,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         deposit_area_path, deposit_line_path = self._line_path(activity_deposits)
         withdrawal_area_path, withdrawal_line_path = self._line_path(activity_withdrawals)
         active_investments = list(
-            UserInvestment.objects.filter(user=self.request.user, is_completed=False)
+            UserInvestment.objects.filter(user=self.request.user, status='active')
             .select_related('plan', 'wallet', 'account')
             .order_by('end_date')
         )
@@ -399,7 +400,7 @@ class InvestmentListView(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         investments_qs = UserInvestment.objects.filter(user=self.request.user).order_by('-start_date')
-        active_investments = investments_qs.filter(is_completed=False)
+        active_investments = investments_qs.filter(status='active')
         wallet = Wallet.objects.filter(
             user=self.request.user,
             wallet_type='primary',
@@ -435,6 +436,9 @@ class CreateInvestmentView(LoginRequiredMixin, FormView):
     form_class = CreateInvestmentForm
     success_url = reverse_lazy('my_investments')
 
+    def _base_template(self):
+        return 'base.html' if self.request.user.is_authenticated else 'public_base.html'
+
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs['user'] = self.request.user
@@ -445,12 +449,33 @@ class CreateInvestmentView(LoginRequiredMixin, FormView):
         amount = form.cleaned_data['amount']
         wallet = form.cleaned_data.get('wallet')
         try:
+            available_balance = wallet.total_balance if wallet else Decimal('0')
+            if amount > available_balance:
+                shortfall = amount - available_balance
+                messages.info(
+                    self.request,
+                    f"Your selected wallet has a shortfall of {shortfall}. Continue to deposit to complete the investment request.",
+                )
+                deposit_url = reverse_lazy('deposit_list')
+                query = urlencode(
+                    {
+                        'open_deposit_modal': '1',
+                        'source': 'investment',
+                        'minimum_amount': str(shortfall),
+                        'investment_plan': str(plan.id),
+                        'investment_amount': str(amount),
+                        'investment_wallet': str(wallet.id) if wallet else '',
+                        'deposit_step': '1',
+                        'return_to': self.request.POST.get('next') or self.request.path,
+                    }
+                )
+                return redirect(f"{deposit_url}?{query}")
+
             create_investment(
                 self.request.user,
                 plan,
                 amount,
                 wallet=wallet,
-                risk_acknowledged=form.cleaned_data.get('risk_acknowledged', False),
             )
             messages.success(self.request, "Investment created successfully.")
             create_notification(
@@ -480,7 +505,7 @@ class CreateInvestmentView(LoginRequiredMixin, FormView):
                 'base_template': self._base_template(),
                 'can_invest': self.request.user.is_authenticated,
             }
-            return self.render_to_response(context, template_name='plans.html')
+            return render(self.request, 'plans.html', context)
 
         investments = attach_profit_schedule(
             UserInvestment.objects.filter(user=self.request.user).order_by('-start_date'),
@@ -495,7 +520,7 @@ class CreateInvestmentView(LoginRequiredMixin, FormView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         investments_qs = UserInvestment.objects.filter(user=self.request.user).order_by('-start_date')
-        active_investments = investments_qs.filter(is_completed=False)
+        active_investments = investments_qs.filter(status='active')
         wallet = Wallet.objects.filter(
             user=self.request.user,
             wallet_type='primary',

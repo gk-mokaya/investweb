@@ -861,8 +861,17 @@
   }
 
   function parseNumber(value) {
-    var num = parseFloat(value);
+    var raw = value;
+    if (raw === null || raw === undefined) return 0;
+    if (typeof raw === 'string') {
+      raw = raw.replace(/[^0-9.-]/g, '');
+    }
+    var num = parseFloat(raw);
     return Number.isFinite(num) ? num : 0;
+  }
+
+  function roundMoney(value) {
+    return Math.round((Number(value) + Number.EPSILON) * 100) / 100;
   }
 
   function formatMoney(value, currency) {
@@ -905,6 +914,7 @@
     var amount = amountInput ? parseNumber(amountInput.value) : 0;
 
     var amountHelp = form.querySelector('[data-plan-amount-help]');
+    var submitBtn = form.querySelector('button[type=\"submit\"], input[type=\"submit\"]');
     if (amountHelp) {
       if (plan) {
         var minText = plan.min_amount ? plan.min_amount + ' ' + currency : '-';
@@ -912,6 +922,15 @@
         var rangeText = 'Min ' + minText + ' · Max ' + maxText;
         var minValue = parseNumber(plan.min_amount);
         var maxValue = parseNumber(plan.max_amount);
+        if (amountInput) {
+          if (amount && minValue && amount < minValue) {
+            amountInput.setCustomValidity('Amount must be at least ' + minText + '.');
+          } else if (amount && maxValue && amount > maxValue) {
+            amountInput.setCustomValidity('Amount must be at most ' + maxText + '.');
+          } else {
+            amountInput.setCustomValidity('');
+          }
+        }
         if (amount && minValue && amount < minValue) {
           amountHelp.textContent = rangeText + ' · Below minimum';
         } else if (amount && maxValue && amount > maxValue) {
@@ -920,6 +939,9 @@
           amountHelp.textContent = rangeText;
         }
       } else {
+        if (amountInput) {
+          amountInput.setCustomValidity('');
+        }
         amountHelp.textContent = 'Select a plan to see min/max.';
       }
     }
@@ -977,8 +999,11 @@
     }
 
     var balanceHelp = form.querySelector('[data-wallet-balance-help]');
+    var topUpHelp = form.querySelector('[data-wallet-topup-help]');
     var balanceStatus = form.querySelector('[data-wallet-balance-status]');
     var walletName = form.querySelector('[data-wallet-selected-name]');
+    var balanceValue = 0;
+    var shortfall = 0;
     if (walletSelect && balanceHelp) {
       var balances = {};
       try {
@@ -986,7 +1011,7 @@
       } catch (err) {
         balances = {};
       }
-      var balanceValue = walletSelect.value ? parseNumber(balances[walletSelect.value]) : 0;
+      balanceValue = walletSelect.value ? parseNumber(balances[walletSelect.value]) : 0;
       var selectedOption = walletSelect.options[walletSelect.selectedIndex];
       var selectedWalletText = selectedOption ? selectedOption.textContent.trim() : '';
       if (!walletSelect.value) {
@@ -994,6 +1019,9 @@
           walletName.textContent = 'Choose a wallet';
         }
         balanceHelp.textContent = 'Select a wallet to see balance.';
+        if (topUpHelp) {
+          topUpHelp.textContent = '-';
+        }
         if (balanceStatus) {
           balanceStatus.style.display = 'none';
           balanceStatus.classList.remove('success', 'danger', 'warning', 'info');
@@ -1003,6 +1031,10 @@
           walletName.textContent = selectedWalletText || 'Selected wallet';
         }
         balanceHelp.textContent = formatMoney(balanceValue, currency);
+        shortfall = roundMoney(Math.max(0, amount - balanceValue));
+        if (topUpHelp) {
+          topUpHelp.textContent = shortfall > 0 ? formatMoney(shortfall, currency) : formatMoney(0, currency);
+        }
         if (balanceStatus) {
           balanceStatus.style.display = 'inline-flex';
           balanceStatus.classList.remove('success', 'danger', 'warning', 'info');
@@ -1019,26 +1051,19 @@
         }
       }
     }
+
+    if (submitBtn) {
+      submitBtn.textContent = plan && amount && shortfall > 0 ? 'Proceed to deposit' : 'Invest';
+    }
+
+    form.dataset.depositShortfall = String(shortfall);
   }
 
   document.querySelectorAll('form[data-investment-form]').forEach(function (form) {
     var planSelect = form.querySelector('[name=\"plan\"]');
     var walletSelect = form.querySelector('[name=\"wallet\"]');
     var amountInput = form.querySelector('[name=\"amount\"]');
-    var riskAck = form.querySelector('[name=\"risk_acknowledged\"]');
-    var riskSwitch = form.querySelector('.risk-switch');
-    var riskHelp = form.querySelector('[data-risk-help]');
     var submitBtn = form.querySelector('button[type=\"submit\"], input[type=\"submit\"]');
-    var updateRiskState = function () {
-      if (!riskAck) return;
-      if (riskSwitch) {
-        riskSwitch.classList.toggle('is-on', riskAck.checked);
-      }
-      var riskState = form.querySelector('[data-risk-state]');
-      if (riskState) {
-        riskState.textContent = riskAck.checked ? 'On' : 'Off';
-      }
-    };
     if (planSelect) {
       planSelect.addEventListener('change', function () {
         updateInvestmentForm(form);
@@ -1053,32 +1078,109 @@
       amountInput.addEventListener('input', function () {
         updateInvestmentForm(form);
       });
-    }
-    if (riskAck) {
-      riskAck.setAttribute('required', 'required');
-      riskAck.addEventListener('change', function () {
-        updateRiskState();
-        if (riskAck.checked && riskHelp) {
-          riskHelp.hidden = true;
-        }
+      amountInput.addEventListener('change', function () {
+        updateInvestmentForm(form);
       });
-      riskAck.addEventListener('blur', updateRiskState);
-      updateRiskState();
-      if (riskHelp) riskHelp.hidden = true;
+      amountInput.addEventListener('keyup', function () {
+        updateInvestmentForm(form);
+      });
     }
-    form.addEventListener('submit', function (event) {
-      if (!riskAck || riskAck.checked) return;
-      event.preventDefault();
-      if (riskHelp) {
-        riskHelp.hidden = false;
-      }
-      if (riskSwitch) {
-        riskSwitch.classList.add('is-on');
-        riskSwitch.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      }
-      riskAck.focus();
-    });
     updateInvestmentForm(form);
+  });
+
+  function setDepositWizardStep(form, step) {
+    if (!form) return;
+    var nextStep = step === '2' ? '2' : '1';
+    var stepInput = form.querySelector('[name=\"deposit_step\"]');
+    var stepOne = form.querySelector('[data-deposit-step-panel=\"1\"]');
+    var stepTwo = form.querySelector('[data-deposit-step-panel=\"2\"]');
+    var primaryBtn = form.querySelector('[data-deposit-primary-action]');
+    var backBtn = form.querySelector('[data-deposit-nav-back]');
+    if (stepInput) {
+      stepInput.value = nextStep;
+    }
+    if (stepOne) {
+      stepOne.classList.toggle('is-hidden', nextStep === '2');
+    }
+    if (stepTwo) {
+      stepTwo.classList.toggle('is-hidden', nextStep !== '2');
+    }
+    if (backBtn) {
+      backBtn.textContent = nextStep === '2' ? 'Back' : 'Back to Investment';
+    }
+    if (primaryBtn) {
+      primaryBtn.textContent = nextStep === '2' ? 'Submit deposit details' : 'Proceed to submit deposit details';
+      primaryBtn.type = nextStep === '2' ? 'submit' : 'button';
+    }
+    form.dataset.depositCurrentStep = nextStep;
+  }
+
+  function updateDepositSummary(form) {
+    if (!form) return;
+    var walletSelect = form.querySelector('[name=\"wallet\"]');
+    var cryptoSelect = form.querySelector('[name=\"crypto\"]');
+    var walletSummary = form.querySelector('[data-deposit-summary-wallet]');
+    var balanceSummary = form.querySelector('[data-deposit-summary-balance]');
+    var cryptoSummary = form.querySelector('[data-deposit-summary-crypto]');
+    var topupSummary = form.querySelector('[data-deposit-summary-topup]');
+    var currency = form.getAttribute('data-currency') || 'USD';
+    var balances = {};
+    if (walletSelect) {
+      try {
+        balances = JSON.parse(walletSelect.getAttribute('data-wallet-balances') || '{}');
+      } catch (err) {
+        balances = {};
+      }
+      var walletName = 'Primary wallet';
+      var walletBalance = walletSelect.value ? parseNumber(balances[walletSelect.value]) : 0;
+      if (walletSummary) {
+        walletSummary.textContent = walletName || 'Primary wallet';
+      }
+      if (balanceSummary) {
+        balanceSummary.textContent = formatMoney(walletBalance, currency);
+      }
+    }
+    if (cryptoSelect) {
+      var selectedCryptoOption = cryptoSelect.options[cryptoSelect.selectedIndex];
+      if (cryptoSummary) {
+        cryptoSummary.textContent = selectedCryptoOption ? selectedCryptoOption.textContent.trim() : 'USDT (TRC20)';
+      }
+    }
+    var minimumInput = form.querySelector('[name=\"minimum_amount\"]');
+    var minimumAmount = minimumInput ? parseNumber(minimumInput.value) : 0;
+    if (topupSummary) {
+      topupSummary.textContent = formatMoney(minimumAmount, currency);
+    }
+  }
+
+  document.querySelectorAll('form[data-deposit-form]').forEach(function (form) {
+    if (form.dataset.depositWizardBound === 'true') return;
+    form.dataset.depositWizardBound = 'true';
+
+    var initialStep = form.getAttribute('data-deposit-current-step') || (form.querySelector('[name=\"deposit_step\"]') || {}).value || '1';
+    setDepositWizardStep(form, initialStep);
+    updateDepositSummary(form);
+
+    var primaryBtn = form.querySelector('[data-deposit-primary-action]');
+    var backBtn = form.querySelector('[data-deposit-nav-back]');
+    var returnToInput = form.querySelector('[name=\"return_to\"]');
+    if (primaryBtn) {
+      primaryBtn.addEventListener('click', function (event) {
+        if (form.dataset.depositCurrentStep !== '1') return;
+        event.preventDefault();
+        setDepositWizardStep(form, '2');
+      });
+    }
+    if (backBtn) {
+      backBtn.addEventListener('click', function () {
+        if (form.dataset.depositCurrentStep === '2') {
+          setDepositWizardStep(form, '1');
+          return;
+        }
+        var returnUrl = returnToInput && returnToInput.value ? returnToInput.value : '/';
+        window.location.href = returnUrl;
+      });
+    }
   });
 
   document.querySelectorAll('[name$=\"method\"]').forEach(function (input) {

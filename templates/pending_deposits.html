@@ -192,9 +192,33 @@
           <div class="info-chip"><div class="info-chip-label">User</div><div class="info-chip-value">{{ deposit.user.username }}</div></div>
           <div class="info-chip"><div class="info-chip-label">Wallet</div><div class="info-chip-value">{% if deposit.wallet %}{{ deposit.wallet.name }} - {{ deposit.wallet.get_wallet_type_display }}{% else %}-{% endif %}</div></div>
           <div class="info-chip"><div class="info-chip-label">Crypto</div><div class="info-chip-value">{{ deposit.crypto.symbol }} ({{ deposit.crypto.network }})</div></div>
-          <div class="info-chip"><div class="info-chip-label">Method</div><div class="info-chip-value">{{ deposit.get_method_display }}</div></div>
           <div class="info-chip"><div class="info-chip-label">Amount</div><div class="info-chip-value">{{ deposit.amount }}</div></div>
           <div class="info-chip"><div class="info-chip-label">Status</div><div class="info-chip-value">{{ deposit.get_status_display }}</div></div>
+          <div class="info-chip"><div class="info-chip-label">Sender email or Binance ID</div><div class="info-chip-value">{{ deposit.sender_address|default:'-' }}</div></div>
+          <div class="info-chip">
+            <div class="info-chip-label">Screenshot</div>
+            <div class="info-chip-value">
+              {% if deposit.screenshot %}
+                <a class="btn ghost small" href="{{ deposit.screenshot.url }}" target="_blank" rel="noopener">View screenshot</a>
+              {% else %}
+                -
+              {% endif %}
+            </div>
+          </div>
+          <div class="info-chip">
+            <div class="info-chip-label">Submitted at</div>
+            <div class="info-chip-value">{{ deposit.created_at|date:"M d, Y H:i" }}</div>
+          </div>
+          <div class="info-chip">
+            <div class="info-chip-label">Linked investment</div>
+            <div class="info-chip-value">
+              {% if deposit.investment_request %}
+                {{ deposit.investment_request.effective_plan_name }} - {{ deposit.investment_request.amount }}
+              {% else %}
+                -
+              {% endif %}
+            </div>
+          </div>
         </div>
       </div>
       <div class="modal-footer">

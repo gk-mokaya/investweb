@@ -89,8 +89,12 @@
             <td data-label="Start">{{ investment.start_date|date:"M d, Y" }}</td>
             <td data-label="End">{{ investment.end_date|date:"M d, Y" }}</td>
             <td data-label="Status">
-              {% if investment.is_completed %}
+              {% if investment.status == 'completed' %}
                 <span class="badge success">Completed</span>
+              {% elif investment.status == 'pending' %}
+                <span class="badge warning">Pending approval</span>
+              {% elif investment.status == 'cancelled' %}
+                <span class="badge danger">Cancelled</span>
               {% else %}
                 <span class="badge info">Active</span>
               {% endif %}
@@ -154,7 +158,7 @@
             </div>
             <div class="detail-item">
               <div class="detail-label">Status</div>
-              <div class="detail-value">{% if investment.is_completed %}Completed{% else %}Active{% endif %}</div>
+              <div class="detail-value">{% if investment.status == 'completed' %}Completed{% elif investment.status == 'pending' %}Pending approval{% elif investment.status == 'cancelled' %}Cancelled{% else %}Active{% endif %}</div>
             </div>
             <div class="detail-item">
               <div class="detail-label">Total Profit</div>
@@ -182,53 +186,63 @@
             </div>
           </div>
         </div>
-        <div class="schedule-section investment-schedule-card">
-          <div class="schedule-section-head">
-            <div class="modal-section-title">Payout schedule</div>
-            <div class="table-view-toggle" data-view-toggle>
-              <button type="button" class="view-toggle-btn is-active" data-view-mode="table" aria-pressed="true" aria-label="Show table view">
-                <svg class="icon sm"><use href="#icon-list"></use></svg>
-              </button>
-              <button type="button" class="view-toggle-btn" data-view-mode="card" aria-pressed="false" aria-label="Show card view">
-                <svg class="icon sm"><use href="#icon-grid"></use></svg>
-              </button>
+        {% if investment.status != 'active' and investment.status != 'completed' %}
+          <div class="alert info">
+            {% if investment.status == 'pending' %}
+              <div>This investment is pending deposit verification. The payout schedule will appear after the deposit is approved.</div>
+            {% elif investment.status == 'cancelled' %}
+              <div>This investment was cancelled and is no longer active.</div>
+            {% endif %}
+          </div>
+        {% else %}
+          <div class="schedule-section investment-schedule-card">
+            <div class="schedule-section-head">
+              <div class="modal-section-title">Payout schedule</div>
+              <div class="table-view-toggle" data-view-toggle>
+                <button type="button" class="view-toggle-btn is-active" data-view-mode="table" aria-pressed="true" aria-label="Show table view">
+                  <svg class="icon sm"><use href="#icon-list"></use></svg>
+                </button>
+                <button type="button" class="view-toggle-btn" data-view-mode="card" aria-pressed="false" aria-label="Show card view">
+                  <svg class="icon sm"><use href="#icon-grid"></use></svg>
+                </button>
+              </div>
+            </div>
+            <div class="schedule-view-shell is-table" data-schedule-view-shell>
+              <div class="table-wrapper schedule-table-wrap">
+                <table class="table schedule-table investment-schedule-table"
+                       data-schedule-table
+                       data-view-key="investment-schedule-{{ investment.id }}"
+                       data-start="{{ investment.start_date|date:'Y-m-d' }}"
+                       data-end="{{ investment.end_date|date:'Y-m-d' }}"
+                       data-amount="{{ investment.amount }}"
+                       data-total-return="{{ investment.effective_total_return }}"
+                       data-duration-days="{{ investment.effective_duration_days }}"
+                       data-frequency="{{ investment.effective_payout_frequency }}"
+                       data-fee="{{ investment.effective_management_fee_pct }}"
+                       data-currency="{{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}"
+                       data-completed="{% if investment.status == 'completed' %}true{% else %}false{% endif %}"
+                       data-earned='[{% for profit in investment.profit_schedule %}{"date":"{{ profit.date|date:"Y-m-d" }}","amount":"{{ profit.amount }}"}{% if not forloop.last %},{% endif %}{% endfor %}]'>
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Payout Amount</th>
+                      <th>Cumulative Profit</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td colspan="4">
+                        <div class="empty-state">Loading schedule...</div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="schedule-card-view" data-schedule-card-view hidden></div>
             </div>
           </div>
-          <div class="schedule-view-shell is-table" data-schedule-view-shell>
-            <div class="table-wrapper schedule-table-wrap">
-              <table class="table schedule-table investment-schedule-table"
-                     data-schedule-table
-                     data-view-key="investment-schedule-{{ investment.id }}"
-                     data-start="{{ investment.start_date|date:'Y-m-d' }}"
-                     data-end="{{ investment.end_date|date:'Y-m-d' }}"
-                     data-amount="{{ investment.amount }}"
-                     data-total-return="{{ investment.effective_total_return }}"
-                     data-duration-days="{{ investment.effective_duration_days }}"
-                     data-frequency="{{ investment.effective_payout_frequency }}"
-                     data-fee="{{ investment.effective_management_fee_pct }}"
-                     data-currency="{{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}"
-                     data-completed="{% if investment.is_completed %}true{% else %}false{% endif %}"
-                     data-earned='[{% for profit in investment.profit_schedule %}{"date":"{{ profit.date|date:"Y-m-d" }}","amount":"{{ profit.amount }}"}{% if not forloop.last %},{% endif %}{% endfor %}]'>
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Payout Amount</th>
-                    <th>Cumulative Profit</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td colspan="4">
-                      <div class="empty-state">Loading schedule...</div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <div class="schedule-card-view" data-schedule-card-view hidden></div>
-          </div>
-        </div>
+        {% endif %}
       </div>
       <div class="modal-footer">
         <button class="btn ghost" type="button" data-modal-close>Close</button>
@@ -244,7 +258,12 @@
       <div class="modal-title">Start Investment</div>
       <button class="modal-close" type="button" data-modal-close><svg class="icon sm"><use href="#icon-x"></use></svg></button>
     </div>
-    <form method="post" action="{% url 'create_investment' %}" data-investment-form data-currency="{{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}">
+    <form
+      method="post"
+      action="{% url 'create_investment' %}"
+      data-investment-form
+      data-currency="{{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}"
+    >
       {% csrf_token %}
       <input type="hidden" name="next" value="{{ request.path }}" />
       <div class="modal-body">
@@ -259,6 +278,14 @@
           <div class="investment-form">
             <div class="form-grid compact investment-fields">
               {% include "partials/form_field.html" with field=create_form.plan %}
+              <div class="form-group">
+                <label for="{{ create_form.amount.id_for_label }}">Amount to invest <span class="error-text">*</span></label>
+                {{ create_form.amount }}
+                <div class="form-help" data-plan-amount-help>Select a plan to see min/max.</div>
+                {% for error in create_form.amount.errors %}
+                  <div class="error-text">{{ error }}</div>
+                {% endfor %}
+              </div>
               {% include "partials/form_field.html" with field=create_form.wallet %}
               <div class="form-group">
                 <label>Wallet Details</label>
@@ -271,18 +298,14 @@
                     <span class="wallet-info-label">Available balance</span>
                     <span class="wallet-info-value" data-wallet-balance-help>Select a wallet to see balance.</span>
                   </div>
+                  <div class="wallet-info-row">
+                    <span class="wallet-info-label">Amount needed to top-up</span>
+                    <span class="wallet-info-value" data-wallet-topup-help>0</span>
+                  </div>
                   <div class="wallet-info-foot">
                     <span class="badge info" data-wallet-balance-status style="display:none;"></span>
                   </div>
                 </div>
-              </div>
-              <div class="form-group">
-                <label for="{{ create_form.amount.id_for_label }}">Amount <span class="error-text">*</span></label>
-                {{ create_form.amount }}
-                <div class="form-help" data-plan-amount-help>Select a plan to see min/max.</div>
-                {% for error in create_form.amount.errors %}
-                  <div class="error-text">{{ error }}</div>
-                {% endfor %}
               </div>
             </div>
           </div>
@@ -341,17 +364,6 @@
                 <strong data-overview-protection>-</strong>
               </div>
             </div>
-          </div>
-          <div class="investment-toggles-compact">
-            <label class="modern-switch modern-switch-full risk-switch">
-              {{ create_form.risk_acknowledged }}
-              <span class="modern-switch-track"></span>
-              <span class="risk-switch-copy">
-                <span class="toggle-label">I understand the risks</span>
-                <span class="risk-switch-state" data-risk-state>Off</span>
-              </span>
-            </label>
-            <div class="form-help risk-help" data-risk-help hidden>Please turn on risk acknowledgment before submitting.</div>
           </div>
         </div>
       </div>

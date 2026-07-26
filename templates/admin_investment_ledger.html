@@ -203,8 +203,10 @@
                   <td data-label="Amount">{{ position.amount|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</td>
                   <td data-label="Earned">{{ position.total_earned|money }} {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</td>
                   <td data-label="Status">
-                    {% if position.is_completed %}
+                    {% if position.status == 'completed' %}
                       <span class="badge success">Settled</span>
+                    {% elif position.status == 'pending' %}
+                      <span class="badge warning">Pending approval</span>
                     {% else %}
                       <span class="badge info">Active</span>
                     {% endif %}

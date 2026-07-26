@@ -149,33 +149,22 @@
           <div class="info-chip-value">{{ deposit.get_status_display }}</div>
         </div>
         <div class="info-chip">
-          <div class="info-chip-label">Payment address</div>
+          <div class="info-chip-label">Sender email or Binance ID</div>
+          <div class="info-chip-value">{{ deposit.sender_address|default:'-' }}</div>
+        </div>
+        <div class="info-chip">
+          <div class="info-chip-label">Screenshot</div>
           <div class="info-chip-value">
-            <span id="depositPay{{ deposit.id }}">{{ deposit.pay_address|default:'-' }}</span>
-            {% if deposit.pay_address %}
-              <button class="btn ghost small" type="button" data-copy-target="#depositPay{{ deposit.id }}">Copy</button>
+            {% if deposit.screenshot %}
+              <a class="btn ghost small" href="{{ deposit.screenshot.url }}" target="_blank" rel="noopener">View screenshot</a>
+            {% else %}
+              -
             {% endif %}
           </div>
         </div>
         <div class="info-chip">
-          <div class="info-chip-label">Transaction hash</div>
-          <div class="info-chip-value">{{ deposit.transaction_hash|default:'-' }}</div>
-        </div>
-        <div class="info-chip">
-          <div class="info-chip-label">Sender address</div>
-          <div class="info-chip-value">{{ deposit.sender_address|default:'-' }}</div>
-        </div>
-        <div class="info-chip">
-          <div class="info-chip-label">Reviewed by</div>
-          <div class="info-chip-value">{% if deposit.reviewed_by %}{{ deposit.reviewed_by.username }}{% else %}-{% endif %}</div>
-        </div>
-        <div class="info-chip">
-          <div class="info-chip-label">Reviewed at</div>
-          <div class="info-chip-value">{% if deposit.reviewed_at %}{{ deposit.reviewed_at|date:"M d, Y H:i" }}{% else %}-{% endif %}</div>
-        </div>
-        <div class="info-chip">
-          <div class="info-chip-label">Review note</div>
-          <div class="info-chip-value">{{ deposit.review_note|default:'-' }}</div>
+          <div class="info-chip-label">Submitted at</div>
+          <div class="info-chip-value">{{ deposit.created_at|date:"M d, Y H:i" }}</div>
         </div>
       </div>
     </div>
@@ -193,40 +182,16 @@
       <div class="modal-title">New deposit</div>
       <button class="modal-close" type="button" data-modal-close><svg class="icon sm"><use href="#icon-x"></use></svg></button>
     </div>
-    <form method="post" action="{% url 'deposit_create' %}">
+    <form method="post" action="{% url 'deposit_create' %}" enctype="multipart/form-data" data-deposit-form data-deposit-current-step="{% if open_deposit_step %}2{% else %}1{% endif %}">
       {% csrf_token %}
+      {{ create_form.minimum_amount }}
+      {{ create_form.return_to }}
+      {{ create_form.source }}
+      {{ create_form.deposit_step }}
+      {{ create_form.investment_plan }}
+      {{ create_form.investment_amount }}
+      {{ create_form.investment_wallet }}
       <div class="modal-body">
-        {% if payment_config and payment_config.enable_deposits %}
-          <div class="deposit-guide" data-method-only="manual">
-            <div class="deposit-guide-title">Deposit in a few steps.</div>
-            <div class="deposit-guide-wallet">
-              <div class="deposit-guide-wallet-label">TRC20 deposit address</div>
-              {% if SYSTEM_SETTINGS.MANUAL_DEPOSIT_WALLET_ADDRESS %}
-                <div class="deposit-guide-wallet-row">
-                  <div
-                    class="deposit-guide-wallet-value"
-                    id="manualDepositWalletAddress"
-                    data-format-address="true"
-                    data-group-size="4"
-                  >{{ SYSTEM_SETTINGS.MANUAL_DEPOSIT_WALLET_ADDRESS }}</div>
-                  <button
-                    class="btn ghost small deposit-guide-copy-btn"
-                    type="button"
-                    data-copy-text="{{ SYSTEM_SETTINGS.MANUAL_DEPOSIT_WALLET_ADDRESS }}"
-                  >Copy address</button>
-                </div>
-              {% else %}
-                <div class="deposit-guide-wallet-value muted">Not set yet. Please contact support before sending funds.</div>
-              {% endif %}
-            </div>
-            <ol class="deposit-guide-steps">
-              <li>Copy the TRC20 deposit address.</li>
-              <li>Send USDT on the TRON network.</li>
-              <li>Submit the transaction hash and sender wallet address.</li>
-              <li>We review and credit the deposit after confirmation.</li>
-            </ol>
-          </div>
-        {% endif %}
         {% if create_form.non_field_errors %}
           <div class="alert danger">
             {% for error in create_form.non_field_errors %}
@@ -234,25 +199,92 @@
             {% endfor %}
           </div>
         {% endif %}
-        <div class="form-grid compact deposit-form-grid">
-          {% include "partials/form_field.html" with field=create_form.wallet %}
-          <div class="form-group deposit-wallet-panel">
-            <label>Wallet balance</label>
-            <input type="text" id="depositWalletBalance" readonly />
+        <div class="deposit-summary-card">
+          <div class="deposit-summary-head">Account summary</div>
+          <div class="deposit-summary-grid">
+            <div class="deposit-summary-item">
+              <span class="deposit-summary-label">Wallet</span>
+              <strong data-deposit-summary-wallet>Primary wallet</strong>
+            </div>
+            <div class="deposit-summary-item">
+              <span class="deposit-summary-label">Wallet balance</span>
+              <strong data-deposit-summary-balance>0.00 {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</strong>
+            </div>
+            <div class="deposit-summary-item">
+              <span class="deposit-summary-label">Crypto</span>
+              <strong data-deposit-summary-crypto>USDT (TRC20)</strong>
+            </div>
           </div>
-          {% include "partials/form_field.html" with field=create_form.crypto %}
-          {% include "partials/form_field.html" with field=create_form.amount %}
-          <div class="span-2">
+          <div class="deposit-summary-topup">
+            <span class="deposit-summary-label">Amount to top up</span>
+            <strong data-deposit-summary-topup>0.00 {{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}</strong>
+          </div>
+        </div>
+        <div class="deposit-step-panel{% if open_deposit_step %} is-hidden{% endif %}" data-deposit-step-panel="1">
+          {% if payment_config and payment_config.enable_deposits %}
+            <div class="deposit-guide" data-method-only="manual">
+              <div class="deposit-guide-title">How to deposit funds</div>
+              <div class="deposit-guide-text">Copy the address below, send the funds from your crypto wallet, then continue when the withdrawal is complete.</div>
+              <div class="deposit-guide-wallet">
+                <div class="deposit-guide-wallet-label">TRC20 (USDT) deposit address</div>
+                {% if SYSTEM_SETTINGS.MANUAL_DEPOSIT_WALLET_ADDRESS %}
+                  <div class="deposit-guide-wallet-row">
+                    <div
+                      class="deposit-guide-wallet-value"
+                      id="manualDepositWalletAddress"
+                      data-format-address="true"
+                      data-group-size="4"
+                    >{{ SYSTEM_SETTINGS.MANUAL_DEPOSIT_WALLET_ADDRESS }}</div>
+                    <button
+                      class="btn ghost small deposit-guide-copy-btn"
+                      type="button"
+                      data-copy-text="{{ SYSTEM_SETTINGS.MANUAL_DEPOSIT_WALLET_ADDRESS }}"
+                    >Copy address</button>
+                  </div>
+                {% else %}
+                  <div class="deposit-guide-wallet-value muted">Not set yet. Please contact support before sending funds.</div>
+                {% endif %}
+              </div>
+              <ol class="deposit-guide-steps">
+                <li>Copy the TRC20 (USDT) deposit address displayed above.</li>
+                <li>Open your cryptocurrency wallet, such as Binance, Bybit, OKX, or Trust Wallet.</li>
+                <li>Choose Withdraw and paste the copied TRC20 deposit address into the recipient address field.</li>
+                <li>Make sure the network is TRC20 (TRON), then enter the amount you want to deposit and complete the withdrawal.</li>
+                <li>After the withdrawal is successful, take a screenshot of the transaction.</li>
+                <li>Proceed to submit the deposit details.</li>
+              </ol>
+            </div>
+          {% endif %}
+          <div hidden aria-hidden="true">
+            {% include "partials/form_field.html" with field=create_form.wallet %}
+            {% include "partials/form_field.html" with field=create_form.crypto %}
+          </div>
+        </div>
+        <div class="deposit-step-panel{% if not open_deposit_step %} is-hidden{% endif %}" data-deposit-step-panel="2">
+          <div class="deposit-step-note deposit-step-note-banner">
+            Please make sure the withdrawal to the address above has completed successfully before submitting the details below.
+          </div>
+          <div class="form-grid compact deposit-form-grid deposit-details-grid">
+            <div class="form-group">
+              <label for="{{ create_form.amount.id_for_label }}">{{ create_form.amount.label }}{% if create_form.amount.field.required %} <span class="error-text">*</span>{% endif %}</label>
+              {{ create_form.amount }}
+              {% if create_form.amount.help_text %}
+                <div class="form-help">{{ create_form.amount.help_text }}</div>
+              {% endif %}
+              {% for error in create_form.amount.errors %}
+                <div class="error-text">{{ error }}</div>
+              {% endfor %}
+            </div>
             {% include "partials/form_field.html" with field=create_form.sender_address %}
-          </div>
-          <div class="span-2">
-            {% include "partials/form_field.html" with field=create_form.transaction_hash %}
+            <div class="span-2">
+              {% include "partials/form_field.html" with field=create_form.screenshot %}
+            </div>
           </div>
         </div>
       </div>
-      <div class="modal-footer">
-        <button class="btn ghost" type="button" data-modal-close>Cancel</button>
-        <button class="btn primary" type="submit">Submit deposit</button>
+      <div class="modal-footer deposit-modal-footer">
+        <button class="btn ghost" type="button" data-deposit-nav-back>{% if open_deposit_step %}Back{% else %}Back to Investment{% endif %}</button>
+        <button class="btn primary" type="{% if open_deposit_step %}submit{% else %}button{% endif %}" data-deposit-primary-action>{% if open_deposit_step %}Submit deposit details{% else %}Proceed to submit deposit details{% endif %}</button>
       </div>
     </form>
   </div>

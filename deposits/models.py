@@ -22,6 +22,15 @@ class Deposit(models.Model):
     method = models.CharField(max_length=20, choices=METHOD_CHOICES, default='manual')
     transaction_hash = models.CharField(max_length=255, null=True, blank=True)
     sender_address = models.CharField(max_length=255, null=True, blank=True)
+    notes = models.TextField(blank=True, default='')
+    screenshot = models.FileField(upload_to='deposits/screenshots/', null=True, blank=True)
+    investment_request = models.ForeignKey(
+        'investments.UserInvestment',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='linked_deposits',
+    )
     payment_id = models.CharField(max_length=255, null=True, blank=True)
     pay_address = models.CharField(max_length=255, null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
@@ -71,19 +80,22 @@ class Deposit(models.Model):
             from wallets.services import credit_wallet
             from accounts.services import create_notification
             from adminpanel.utils import log_action
+            from investments.services import activate_investment_from_deposit, cancel_pending_investment_request
 
             if self.status == 'completed':
                 credit_wallet(self.wallet, self.amount, 'main', 'deposit', {'deposit_id': self.id})
                 if not self.completed_at:
                     self.completed_at = timezone.now()
                     Deposit.objects.filter(pk=self.pk).update(completed_at=self.completed_at)
-                detail = f" Your review note: {self.review_note}" if self.review_note else ""
+                detail = f" Review note: {self.review_note}" if self.review_note else ""
                 create_notification(
                     self.user,
                     "Deposit completed",
-                    f"Your {self.crypto.symbol} deposit of {self.amount} has been approved and credited.{detail}",
+                    f"Your {self.crypto.symbol} deposit of {self.amount} has been approved, credited, and is now linked to your investment request.{detail}",
                     level='success',
                 )
+                if self.investment_request_id:
+                    activate_investment_from_deposit(self.investment_request, deposit=self)
             elif self.status == 'rejected':
                 detail = f" Review note: {self.review_note}" if self.review_note else ""
                 create_notification(
@@ -92,6 +104,12 @@ class Deposit(models.Model):
                     f"Your deposit was rejected.{detail}",
                     level='warning',
                 )
+                if self.investment_request_id:
+                    cancel_pending_investment_request(
+                        self.investment_request,
+                        reason='deposit_rejected',
+                        deposit=self,
+                    )
             elif self.status in {'pending', 'confirming'}:
                 create_notification(
                     self.user,

@@ -16,6 +16,8 @@ class AuditLog(models.Model):
         ('withdrawal_completed', 'Withdrawal Completed'),
         ('withdrawal_status_updated', 'Withdrawal Status Updated'),
         ('investment_created', 'Investment Created'),
+        ('investment_activated', 'Investment Activated'),
+        ('investment_cancelled', 'Investment Cancelled'),
         ('profit_applied', 'Profit Applied'),
         ('settings_changed', 'Settings Changed'),
         ('login', 'Login'),

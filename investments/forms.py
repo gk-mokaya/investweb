@@ -1,5 +1,8 @@
 from django import forms
 import json
+from decimal import Decimal
+
+from django import forms
 
 from investments.models import InvestmentPlan
 from wallets.models import Wallet
@@ -7,9 +10,8 @@ from wallets.models import Wallet
 
 class CreateInvestmentForm(forms.Form):
     plan = forms.ModelChoiceField(queryset=InvestmentPlan.objects.none())
-    wallet = forms.ModelChoiceField(queryset=Wallet.objects.none())
     amount = forms.DecimalField(min_value=1, decimal_places=2, max_digits=12)
-    risk_acknowledged = forms.BooleanField(required=False)
+    wallet = forms.ModelChoiceField(queryset=Wallet.objects.none())
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -51,14 +53,27 @@ class CreateInvestmentForm(forms.Form):
                 'data-wallet-balances': json.dumps(balances),
                 'data-balance-target': 'investmentWalletBalance',
             })
-        self.fields['amount'].label = 'Investment Amount'
-        self.fields['amount'].help_text = 'Currency amount that will be locked in the investment ledger.'
+        self.fields['amount'].label = 'Amount to invest'
+        self.fields['amount'].help_text = 'Enter the amount first so we can validate it against the selected plan.'
         self.fields['amount'].widget.attrs.update({
             'placeholder': 'Enter amount',
             'min': '1',
             'step': '0.01',
             'inputmode': 'decimal',
         })
+        self.fields['wallet'].label = 'Funding Wallet'
+        self.fields['wallet'].help_text = 'Select the funding wallet after choosing your amount.'
+
+    def clean(self):
+        cleaned_data = super().clean()
+        plan = cleaned_data.get('plan')
+        amount = cleaned_data.get('amount')
+        if plan and amount is not None:
+            if amount < plan.min_amount:
+                self.add_error('amount', f"Amount must be at least {plan.min_amount}.")
+            elif plan.max_amount and amount > plan.max_amount:
+                self.add_error('amount', f"Amount must be at most {plan.max_amount}.")
+        return cleaned_data
 
 
 class InvestmentPlanForm(forms.ModelForm):

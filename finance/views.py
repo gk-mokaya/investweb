@@ -36,8 +36,8 @@ def _money_total(value) -> Decimal:
 
 
 def _ledger_position_totals(positions):
-    active_positions = [position for position in positions if not position.is_completed]
-    completed_positions = [position for position in positions if position.is_completed]
+    active_positions = [position for position in positions if position.status == 'active']
+    completed_positions = [position for position in positions if position.status == 'completed']
     return {
         'positions': positions,
         'active_positions': active_positions,
@@ -53,12 +53,12 @@ def _ledger_position_totals(positions):
 
 def _ledger_account_summary(queryset):
     summary_totals = queryset.aggregate(
-        active_positions=Count('positions', filter=Q(positions__is_completed=False)),
-        completed_positions=Count('positions', filter=Q(positions__is_completed=True)),
-        active_principal=Sum('positions__amount', filter=Q(positions__is_completed=False)),
-        active_earned=Sum('positions__total_earned', filter=Q(positions__is_completed=False)),
+        active_positions=Count('positions', filter=Q(positions__status='active')),
+        completed_positions=Count('positions', filter=Q(positions__status='completed')),
+        active_principal=Sum('positions__amount', filter=Q(positions__status='active')),
+        active_earned=Sum('positions__total_earned', filter=Q(positions__status='active')),
         total_earned=Sum('positions__total_earned'),
-        settled_principal=Sum('positions__amount', filter=Q(positions__is_completed=True)),
+        settled_principal=Sum('positions__amount', filter=Q(positions__status='completed')),
     )
     return {
         'users_tracked': queryset.count(),
@@ -148,12 +148,12 @@ class AdminInvestmentLedgerView(LoginRequiredMixin, StaffOnlyMixin, ListView):
                 )
             )
             .annotate(
-                active_principal_total=Sum('positions__amount', filter=Q(positions__is_completed=False)),
-                active_earned_total=Sum('positions__total_earned', filter=Q(positions__is_completed=False)),
+                active_principal_total=Sum('positions__amount', filter=Q(positions__status='active')),
+                active_earned_total=Sum('positions__total_earned', filter=Q(positions__status='active')),
                 total_earned_total=Sum('positions__total_earned'),
-                active_positions_total=Count('positions', filter=Q(positions__is_completed=False)),
-                completed_positions_total=Count('positions', filter=Q(positions__is_completed=True)),
-                settled_principal_total=Sum('positions__amount', filter=Q(positions__is_completed=True)),
+                active_positions_total=Count('positions', filter=Q(positions__status='active')),
+                completed_positions_total=Count('positions', filter=Q(positions__status='completed')),
+                settled_principal_total=Sum('positions__amount', filter=Q(positions__status='completed')),
             )
             .order_by('user__username')
         )
@@ -391,7 +391,7 @@ class DepositApproveView(LoginRequiredMixin, StaffOnlyMixin, View):
         deposit.status = 'completed'
         deposit.save()
         log_action(request.user, 'deposit_completed', 'deposit', deposit.id, {'user': deposit.user.username})
-        messages.success(request, 'Deposit completed and credited.')
+        messages.success(request, 'Deposit completed, credited, and the linked investment request has been activated.')
         return redirect(request.POST.get('next') or request.META.get('HTTP_REFERER') or reverse_lazy('admin_dashboard'))
 
 

@@ -16,6 +16,6 @@ class DepositAdmin(admin.ModelAdmin):
         'completed_at',
     )
     list_filter = ('status', 'method', 'crypto')
-    search_fields = ('user__username', 'user__email', 'transaction_hash', 'sender_address', 'review_note')
+    search_fields = ('user__username', 'user__email', 'transaction_hash', 'sender_address', 'notes', 'review_note')
 
 # Register your models here.

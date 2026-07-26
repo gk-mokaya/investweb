@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from decimal import Decimal
+from django.core.files.uploadedfile import SimpleUploadedFile
 
 from django.contrib.auth.models import User
 from django.core.cache import cache
@@ -8,14 +9,19 @@ from django.test import TestCase
 from django.utils import timezone
 from django.urls import reverse
 
+from deposits.models import Deposit
+from investments.forms import CreateInvestmentForm
 from investments.models import DailyProfit, InvestmentPlan, UserInvestment
 from investments.services import (
     PROFIT_SYNC_SUMMARY_CACHE_KEY,
     _acquire_profit_sync_lock,
     _release_profit_sync_lock,
     apply_daily_profits,
+    create_pending_investment_request,
     sync_investment_profits,
 )
+from payments.models import CryptoCurrency
+from kyc.models import KYCProfile
 from wallets.models import Wallet
 from wallets.services import get_primary_wallet
 
@@ -25,6 +31,17 @@ class InvestmentProfitSyncTests(TestCase):
         self.user = User.objects.create_user(username='alice', email='alice@example.com', password='pass12345')
         self.wallet = get_primary_wallet(self.user)
         self.account = self.user.investment_account
+        self.crypto, _ = CryptoCurrency.objects.get_or_create(
+            symbol='USDT',
+            network='TRC20',
+            defaults={
+                'name': 'Tether',
+                'is_active': True,
+            },
+        )
+        kyc_profile, _ = KYCProfile.objects.get_or_create(user=self.user)
+        kyc_profile.status = 'verified'
+        kyc_profile.save(update_fields=['status'])
         self.wallet.main_balance = Decimal('0')
         self.wallet.bonus_balance = Decimal('0')
         self.wallet.profit_balance = Decimal('0')
@@ -192,6 +209,96 @@ class InvestmentProfitSyncTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'A compact control center for balances, investment flow, and plan health.')
+
+    def test_investment_form_rejects_amount_below_plan_minimum(self):
+        plan = self._create_plan(payout_frequency='daily', duration_days=3, total_return='30.00')
+        form = CreateInvestmentForm(
+            data={
+                'plan': str(plan.id),
+                'amount': '5.00',
+                'wallet': str(self.wallet.id),
+            },
+            user=self.user,
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn('Amount must be at least', form.errors['amount'][0])
+
+    def test_pending_investment_reserves_bonus_balance(self):
+        self.wallet.bonus_balance = Decimal('10.00')
+        self.wallet.save(update_fields=['bonus_balance'])
+        plan = self._create_plan(payout_frequency='daily', duration_days=3, total_return='30.00')
+
+        pending = create_pending_investment_request(self.user, plan, Decimal('100.00'), wallet=self.wallet)
+
+        self.wallet.refresh_from_db()
+        pending.refresh_from_db()
+
+        self.assertEqual(self.wallet.bonus_balance, Decimal('0.00'))
+        self.assertEqual(pending.status, 'pending')
+        self.assertEqual(pending.reserved_bonus_amount, Decimal('10.00'))
+
+    def test_shortfall_redirects_to_deposit_without_creating_investment(self):
+        self.wallet.main_balance = Decimal('10.00')
+        self.wallet.save(update_fields=['main_balance'])
+        plan = self._create_plan(payout_frequency='daily', duration_days=3, total_return='30.00')
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse('create_investment'),
+            {
+                'plan': str(plan.id),
+                'amount': '100.00',
+                'wallet': str(self.wallet.id),
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse('deposit_list'), response['Location'])
+        self.assertEqual(UserInvestment.objects.count(), 0)
+
+    def test_deposit_completion_creates_deposit_and_investment_together(self):
+        self.wallet.main_balance = Decimal('10.00')
+        self.wallet.save(update_fields=['main_balance'])
+        plan = self._create_plan(payout_frequency='daily', duration_days=3, total_return='30.00')
+        self.client.force_login(self.user)
+
+        invest_response = self.client.post(
+            reverse('create_investment'),
+            {
+                'plan': str(plan.id),
+                'amount': '100.00',
+                'wallet': str(self.wallet.id),
+            },
+        )
+        self.assertEqual(invest_response.status_code, 302)
+        self.assertIn(reverse('deposit_list'), invest_response['Location'])
+        self.assertEqual(UserInvestment.objects.count(), 0)
+
+        deposit_response = self.client.post(
+            reverse('deposit_create'),
+            {
+                'wallet': str(self.wallet.id),
+                'crypto': str(self.crypto.id),
+                'amount': '100.00',
+                'sender_address': 'tester@example.com',
+                'screenshot': SimpleUploadedFile('proof.png', b'fake-image-bytes', content_type='image/png'),
+                'source': 'investment',
+                'deposit_step': '2',
+                'minimum_amount': '90.00',
+                'investment_plan': str(plan.id),
+                'investment_amount': '100.00',
+                'investment_wallet': str(self.wallet.id),
+            },
+        )
+
+        self.assertEqual(deposit_response.status_code, 302)
+        self.assertEqual(Deposit.objects.count(), 1)
+        self.assertEqual(UserInvestment.objects.count(), 1)
+        investment = UserInvestment.objects.first()
+        deposit = Deposit.objects.first()
+        self.assertEqual(investment.status, 'pending')
+        self.assertEqual(deposit.investment_request_id, investment.id)
 
 
 class PublicMarketingPagesTests(TestCase):

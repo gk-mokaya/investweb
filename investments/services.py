@@ -68,7 +68,6 @@ def create_investment(
     amount: Decimal,
     *,
     wallet: Wallet | None = None,
-    risk_acknowledged: bool = False,
 ) -> UserInvestment:
     if wallet is None:
         raise ValueError("Select a wallet for investments.")
@@ -113,10 +112,175 @@ def create_investment(
         plan=plan,
         amount=amount,
         end_date=end_date,
-        risk_acknowledged=risk_acknowledged,
+        activated_at=timezone.now(),
+        status='active',
+        risk_acknowledged=False,
         **_plan_snapshot_kwargs(plan),
     )
     log_action(user, 'investment_created', 'investment', investment.id, {'plan': plan.name, 'amount': str(amount)})
+    return investment
+
+
+@transaction.atomic
+def create_pending_investment_request(
+    user,
+    plan: InvestmentPlan,
+    amount: Decimal,
+    *,
+    wallet: Wallet | None = None,
+) -> UserInvestment:
+    if wallet is None:
+        raise ValueError("Select a wallet for investments.")
+    if wallet.user_id != user.id:
+        raise ValueError("Selected wallet does not belong to this user.")
+    if wallet.wallet_type != 'primary':
+        raise ValueError("Investments can only be funded from the primary wallet.")
+    if amount < plan.min_amount:
+        raise ValueError("Amount below plan minimum.")
+    if plan.max_amount and amount > plan.max_amount:
+        raise ValueError("Amount above plan maximum.")
+
+    wallet = Wallet.objects.select_for_update().get(pk=wallet.pk)
+    bonus_to_reserve = min(wallet.bonus_balance, amount)
+    if bonus_to_reserve > 0:
+        debit_wallet(
+            wallet,
+            bonus_to_reserve,
+            'bonus',
+            'investment',
+            {'plan': plan.name, 'reason': 'pending_investment_reserve'},
+        )
+
+    investment_account = get_investment_account(user)
+    pending_investment = UserInvestment.objects.create(
+        user=user,
+        wallet=wallet,
+        account=investment_account,
+        plan=plan,
+        amount=amount,
+        end_date=timezone.now() + timedelta(days=plan.duration_days),
+        activated_at=None,
+        status='pending',
+        reserved_bonus_amount=bonus_to_reserve,
+        risk_acknowledged=False,
+        **_plan_snapshot_kwargs(plan),
+    )
+    log_action(
+        user,
+        'investment_created',
+        'investment',
+        pending_investment.id,
+        {'plan': plan.name, 'amount': str(amount), 'status': 'pending', 'reserved_bonus_amount': str(bonus_to_reserve)},
+    )
+    return pending_investment
+
+
+@transaction.atomic
+def activate_investment_from_deposit(investment: UserInvestment, deposit=None) -> UserInvestment:
+    if investment.status == 'active':
+        return investment
+    if investment.status == 'completed':
+        return investment
+    if investment.status == 'cancelled':
+        raise ValueError("Cancelled investments cannot be activated.")
+    if not investment.wallet_id:
+        raise ValueError("Investment wallet is not set.")
+
+    wallet = Wallet.objects.select_for_update().get(pk=investment.wallet_id)
+    if wallet.user_id != investment.user_id:
+        raise ValueError("Selected wallet does not belong to this user.")
+    if wallet.wallet_type != 'primary':
+        raise ValueError("Investments can only be funded from the primary wallet.")
+    required_amount = investment.amount - (investment.reserved_bonus_amount or Decimal('0'))
+    if required_amount < 0:
+        required_amount = Decimal('0')
+    if wallet.total_balance < required_amount:
+        raise ValueError("Insufficient available wallet balance to activate the investment.")
+
+    remaining = required_amount
+    for bucket in ('main', 'bonus', 'profit'):
+        bucket_balance = getattr(wallet, f'{bucket}_balance')
+        if remaining <= 0:
+            break
+        deduction = min(bucket_balance, remaining)
+        if deduction > 0:
+            debit_wallet(
+                wallet,
+                deduction,
+                bucket,
+                'investment',
+                {
+                    'plan': investment.effective_plan_name,
+                    'bucket': bucket,
+                    'investment_id': investment.id,
+                    'deposit_id': deposit.id if deposit else None,
+                    'reason': 'deposit_activation',
+                },
+            )
+            remaining -= deduction
+
+    if remaining > 0:
+        raise ValueError("Insufficient available wallet balance to activate the investment.")
+
+    now = timezone.now()
+    investment.status = 'active'
+    investment.activated_at = now
+    investment.start_date = now
+    investment.end_date = now + timedelta(days=investment.effective_duration_days or investment.plan.duration_days or 0)
+    investment.is_completed = False
+    investment.save(update_fields=['status', 'activated_at', 'start_date', 'end_date', 'is_completed'])
+    from accounts.services import create_notification
+    create_notification(
+        investment.user,
+        "Investment activated",
+        f"Your {investment.effective_plan_name} investment of {investment.amount} has been activated after deposit verification.",
+        level='success',
+    )
+    log_action(
+        investment.user,
+        'investment_activated',
+        'investment',
+        investment.id,
+        {'deposit_id': deposit.id if deposit else None, 'amount': str(investment.amount)},
+    )
+    return investment
+
+
+@transaction.atomic
+def cancel_pending_investment_request(investment: UserInvestment, *, reason: str = '', deposit=None) -> UserInvestment:
+    if investment.status != 'pending':
+        return investment
+    reserved_bonus = investment.reserved_bonus_amount or Decimal('0')
+    if reserved_bonus > 0:
+        wallet = Wallet.objects.select_for_update().get(pk=investment.wallet_id)
+        credit_wallet(
+            wallet,
+            reserved_bonus,
+            'bonus',
+            'investment',
+            {
+                'investment_id': investment.id,
+                'reason': reason or 'pending_investment_cancelled',
+                'deposit_id': deposit.id if deposit else None,
+            },
+        )
+    investment.status = 'cancelled'
+    investment.activated_at = None
+    investment.save(update_fields=['status', 'activated_at'])
+    from accounts.services import create_notification
+    create_notification(
+        investment.user,
+        "Investment request cancelled",
+        f"Your {investment.effective_plan_name} investment request was cancelled and any reserved bonus has been restored.",
+        level='warning',
+    )
+    log_action(
+        investment.user,
+        'investment_cancelled',
+        'investment',
+        investment.id,
+        {'status': 'cancelled', 'reason': reason, 'deposit_id': deposit.id if deposit else None},
+    )
     return investment
 
 
@@ -256,7 +420,7 @@ def sync_investment_profits(process_date=None) -> dict:
     try:
         investments = (
             UserInvestment.objects.select_related('plan', 'user', 'wallet', 'account')
-            .filter(start_date__date__lte=process_date, is_completed=False)
+            .filter(start_date__date__lte=process_date, status='active')
             .order_by('pk')
         )
 
@@ -309,13 +473,14 @@ def sync_investment_profits(process_date=None) -> dict:
 
             if should_be_completed and not investment.is_completed:
                 investment.is_completed = True
+                investment.status = 'completed'
                 summary['investments_completed'] += 1
 
             if investment.is_completed and not investment.settled_at:
                 _release_investment_to_primary_wallet(investment)
 
             if created_any or should_be_completed:
-                update_fields = ['total_earned', 'is_completed']
+                update_fields = ['total_earned', 'is_completed', 'status']
                 if investment.settled_at:
                     update_fields.append('settled_at')
                 investment.save(update_fields=update_fields)

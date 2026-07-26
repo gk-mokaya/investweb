@@ -223,7 +223,12 @@
       <div class="modal-title">Start Investment</div>
       <button class="modal-close" type="button" data-modal-close><svg class="icon sm"><use href="#icon-x"></use></svg></button>
     </div>
-    <form method="post" action="{% url 'create_investment' %}" data-investment-form data-currency="{{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}">
+    <form
+      method="post"
+      action="{% url 'create_investment' %}"
+      data-investment-form
+      data-currency="{{ SYSTEM_SETTINGS.CURRENCY|default:'USD' }}"
+    >
       {% csrf_token %}
       <input type="hidden" name="next" value="{{ request.path }}" />
       <div class="modal-body">
@@ -238,6 +243,14 @@
           <div class="investment-form">
             <div class="form-grid compact investment-fields">
               {% include "partials/form_field.html" with field=create_form.plan %}
+              <div class="form-group">
+                <label for="{{ create_form.amount.id_for_label }}">Amount to invest <span class="error-text">*</span></label>
+                {{ create_form.amount }}
+                <div class="form-help" data-plan-amount-help>Select a plan to see min/max.</div>
+                {% for error in create_form.amount.errors %}
+                  <div class="error-text">{{ error }}</div>
+                {% endfor %}
+              </div>
               {% include "partials/form_field.html" with field=create_form.wallet %}
               <div class="form-group">
                 <label>Wallet Details</label>
@@ -250,18 +263,14 @@
                     <span class="wallet-info-label">Available balance</span>
                     <span class="wallet-info-value" data-wallet-balance-help>Select a wallet to see balance.</span>
                   </div>
+                  <div class="wallet-info-row">
+                    <span class="wallet-info-label">Amount needed to top-up</span>
+                    <span class="wallet-info-value" data-wallet-topup-help>0</span>
+                  </div>
                   <div class="wallet-info-foot">
                     <span class="badge info" data-wallet-balance-status style="display:none;"></span>
                   </div>
                 </div>
-              </div>
-              <div class="form-group">
-                <label for="{{ create_form.amount.id_for_label }}">Amount <span class="error-text">*</span></label>
-                {{ create_form.amount }}
-                <div class="form-help" data-plan-amount-help>Select a plan to see min/max.</div>
-                {% for error in create_form.amount.errors %}
-                  <div class="error-text">{{ error }}</div>
-                {% endfor %}
               </div>
             </div>
           </div>
@@ -320,17 +329,6 @@
                 <strong data-overview-protection>-</strong>
               </div>
             </div>
-          </div>
-          <div class="investment-toggles-compact">
-            <label class="modern-switch modern-switch-full risk-switch">
-              {{ create_form.risk_acknowledged }}
-              <span class="modern-switch-track"></span>
-              <span class="risk-switch-copy">
-                <span class="toggle-label">I understand the risks</span>
-                <span class="risk-switch-state" data-risk-state>Off</span>
-              </span>
-            </label>
-            <div class="form-help risk-help" data-risk-help hidden>Please turn on risk acknowledgment before submitting.</div>
           </div>
         </div>
       </div>
